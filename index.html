@@ -564,12 +564,12 @@
       <div style="text-align:center; margin-bottom:18px;">
         <h2 style="font-size:1.35rem; margin-bottom:6px;" id="landingClassTitle">Enter Your Class Code</h2>
         <p style="font-size:0.9rem; color:var(--color-text-muted);" id="landingClassSub">
-          Type your teacher's class code below, or click your name and animal picture if your class is shown!
+          Type your teacher's class code below to view your classroom roster!
         </p>
       </div>
 
       <div class="class-code-bar">
-        <input type="text" id="classCodeInput" maxlength="12" placeholder="e.g. OWL204" onkeydown="if(event.key==='Enter') loadClassByCode()">
+        <input type="text" id="classCodeInput" maxlength="12" placeholder="CLASS CODE" onkeydown="if(event.key==='Enter') loadClassByCode()">
         <button class="btn-submit" style="padding:0 20px;" onclick="loadClassByCode()">Open Class</button>
       </div>
 
@@ -762,7 +762,7 @@
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
           <span style="font-size:0.8rem; color:var(--color-text-muted);">Student Link:</span>
-          <code id="shareableClassUrl" style="background:#F4F7F2; padding:6px 10px; border-radius:6px; font-size:0.8rem; border:1px solid var(--color-border);"></code>
+          <code id="shareableClassUrl" style="background:#F4F7F2; padding:6px 10px; border-radius:6px; font-size:0.8rem; border:1px solid var(--color-border);">Create a class to generate link</code>
           <button class="btn-submit" style="padding:7px 12px; font-size:0.8rem;" onclick="copyClassLink()">Copy Link</button>
         </div>
       </div>
@@ -868,7 +868,7 @@ Noah T."></textarea>
           Add colleague email addresses below so other teachers can sign in, create their own class codes, and track their students.
         </p>
         <div style="display:flex; gap:10px; max-width:520px; margin-bottom:16px;">
-          <input type="email" id="newTeacherEmailInput" placeholder="colleague@school.edu" style="flex:1; padding:10px; border:2px solid var(--color-border); border-radius:8px;">
+          <input type="email" id="newTeacherEmailInput" placeholder="colleague@gmail.com" style="flex:1; padding:10px; border:2px solid var(--color-border); border-radius:8px;">
           <input type="text" id="newTeacherNameInput" placeholder="Teacher Name" style="width:160px; padding:10px; border:2px solid var(--color-border); border-radius:8px;">
           <button class="btn-submit" onclick="authorizeTeacher()">Authorize</button>
         </div>
@@ -891,7 +891,7 @@ Noah T."></textarea>
     <div class="modal-box" style="text-align:center;">
       <button class="modal-close" onclick="closeModal('picturePinModal')">✕</button>
       <div style="font-size:3rem;" id="pinModalAvatar">🦊</div>
-      <div class="modal-title" id="pinModalStudentName">Hi, Maya!</div>
+      <div class="modal-title" id="pinModalStudentName">Hi!</div>
       <p class="modal-sub">Tap your <strong>2 secret animal pictures</strong> to unlock your notebook:</p>
       <div style="font-size:1.6rem; min-height:38px; margin-bottom:8px;" id="pinSelectedPreview">⬜ ⬜</div>
       <div class="animal-picker-grid" id="pinPadGrid"></div>
@@ -907,11 +907,11 @@ Noah T."></textarea>
       <p class="modal-sub">Sign in with your authorized teacher email to manage classes, rosters, and assigned tests.</p>
       <div class="form-field">
         <label>Teacher Email</label>
-        <input type="email" id="teacherLoginEmail" placeholder="you@school.edu">
+        <input type="email" id="teacherLoginEmail" placeholder="liammcdermott90@gmail.com">
       </div>
       <div class="form-field">
-        <label>Password (Required when Supabase Auth is enabled)</label>
-        <input type="password" id="teacherLoginPassword" placeholder="••••••••">
+        <label>Password (Optional until Supabase Auth is enabled)</label>
+        <input type="password" id="teacherLoginPassword" placeholder="Leave blank for instant access">
       </div>
       <div style="display:flex; gap:10px;">
         <button class="btn-submit" style="padding:10px 16px; flex:1;" onclick="handleTeacherLogin('login')">Sign In to Dashboard</button>
@@ -938,7 +938,7 @@ Noah T."></textarea>
     </div>
   </div>
 
-  <!-- STUDENT PROGRESS INSPECTOR MODAL (Used by both Student "My Progress" and Teacher Drill-Down) -->
+  <!-- STUDENT PROGRESS INSPECTOR MODAL -->
   <div class="modal-backdrop" id="progressInspectorModal">
     <div class="modal-box" style="max-width:640px;">
       <button class="modal-close" onclick="closeModal('progressInspectorModal')">✕</button>
@@ -991,7 +991,7 @@ Noah T."></textarea>
     /* ============================================================================
        SUPABASE CLOUD CONFIGURATION & SQL SETUP INSTRUCTIONS
        ============================================================================
-       1. Create a free project at https://supabase.com
+       1. Create a free project at https://supabase.com using your personal Gmail.
        2. Paste your Project URL and Anon Key into CONFIG below.
        3. In Supabase SQL Editor, run this schema to create your tables:
 
@@ -1023,7 +1023,7 @@ Noah T."></textarea>
        create table assignments (
          id text primary key,
          class_code text references classes(code) on delete cascade,
-         student_id text, -- null means assigned to entire class
+         student_id text,
          title text not null,
          scope text not null,
          question_count int default 8,
@@ -1031,7 +1031,6 @@ Noah T."></textarea>
          created_at timestamptz default now()
        );
 
-       -- Enable public classroom read/write policies for student picture-login Chromebooks:
        alter table teachers enable row level security;
        alter table classes enable row level security;
        alter table students enable row level security;
@@ -1044,10 +1043,10 @@ Noah T."></textarea>
        ============================================================================ */
 
     const CONFIG = {
-      SUPABASE_URL: "",               // Paste Supabase Project URL here
-      SUPABASE_ANON_KEY: "",          // Paste Supabase Anon Public Key here
-      ADMIN_TEACHER_EMAIL: "teacher@school.edu", // Replace with your teacher email
-      MERRIAM_WEBSTER_KEY: ""         // Optional: Free Merriam-Webster API key from dictionaryapi.com
+      SUPABASE_URL: "",                          // Optional: Paste Supabase Project URL here
+      SUPABASE_ANON_KEY: "",                     // Optional: Paste Supabase Anon Public Key here
+      ADMIN_TEACHER_EMAIL: "liammcdermott90@gmail.com",
+      MERRIAM_WEBSTER_KEY: ""                    // Optional: Free Merriam-Webster API key
     };
 
     let supabaseClient = null;
@@ -1139,6 +1138,23 @@ Noah T."></textarea>
       ]
     };
 
+    /* EXPANDED FALSE-ROOT / TRICKSTER WORDS PER AFFIX */
+    const EXTRA_NON_EXAMPLES = {
+      "un-": ["uncle", "under", "understand", "underneath", "undergo", "undertake", "universe", "university", "unit", "unite", "united", "uniform", "unicorn", "union", "unique", "unison", "until", "unto"],
+      "re-": ["real", "really", "reach", "ready", "read", "rest", "reason", "record", "region", "result", "report", "recent", "recipe", "rescue", "reward"],
+      "pre-": ["president", "pretty", "press", "present", "predict", "prepare", "prefer", "pretend", "previous", "precious"],
+      "non-": ["noon", "noble", "none"],
+      "dis-": ["distance", "distant", "disk", "dish", "discover", "discuss", "disease", "display"],
+      "mis-": ["miss", "missed", "missing", "mission", "mist", "mistake", "mister", "mystery"],
+      "in-/im-": ["inch", "insect", "image", "imagine", "into", "inside", "important", "improve", "include", "income", "indeed", "industry", "infant", "inform", "injure", "ink", "inn", "input", "instance", "instant", "instead", "instrument", "invent", "invite", "island"],
+      "de-": ["desk", "deer", "deep", "deal", "dear", "death", "debt", "decade", "decide", "declare", "decorate", "deeply", "defeat", "defend", "degree", "delay", "delicious", "deliver", "demand", "dentist", "depend", "describe", "desert", "design", "desire", "detail", "detect", "develop", "device"],
+      "-er (person)": ["water", "butter", "paper", "sister", "brother", "mother", "father", "winter", "summer", "silver", "tiger", "spider", "letter", "number", "chapter", "center", "corner", "dinner", "finger", "flower", "hammer", "ladder", "monster", "river", "shower", "supper", "tower", "under", "other", "over", "after", "never", "ever"],
+      "-ing": ["king", "ring", "sing", "bring", "thing", "wing", "spring", "string", "swing", "sting", "sling", "cling", "fling"],
+      "-ly": ["fly", "family", "jelly", "belly", "ally", "bully", "daily", "early", "holy", "illy", "jolly", "lily", "lovely", "only", "rally", "reply", "silly", "supply", "ugly"],
+      "-less": ["bless", "unless", "dress", "less", "lesson", "mess", "press", "guess", "chess"],
+      "-ful": ["awful", "full"]
+    };
+
     const OWLY_DIALOGUE = {
       intros: [
         (id, meaning) => `Hoot! Let's examine ${id}. It carries the meaning: ${meaning}. What words can you discover?`,
@@ -1159,8 +1175,8 @@ Noah T."></textarea>
       offline: () => `Internet connection required! Please connect your Chromebook to Wi-Fi so I can check the online dictionary.`,
       falseRoot: [
         (word, id) => `Aha! "${word}" looks like it contains ${id}, but beware—it's a false root! Into the non-examples box it goes.`,
-        (word, id) => `Good attempt, but "${word}" is a trickster! It doesn't carry the root meaning of ${id}.`,
-        (word, id) => `Watch out! "${word}" is what we call a false root. Great catch putting it in the detector!`
+        (word, id) => `Good catch! "${word}" is a trickster—stripping ${id} doesn't leave a matching root word!`,
+        (word, id) => `Watch out! "${word}" is a non-example of ${id}. Great job spotting it for the detector!`
       ],
       hints: [
         word => `Hmm... "${word}" is a real word, but it doesn't use ${currentUnitMorphemes().join(' or ')} properly.`,
@@ -1172,25 +1188,19 @@ Noah T."></textarea>
       tier15: "MORPHEME MASTERED! 15 words found! You earned the Golden Crown for this unit! 👑"
     };
 
-    /* DATA STORE (LOCAL DEMO + SUPABASE SYNC) */
+    /* CLEAN SLATE DATA STORE (ALL OLD CLASSES & PROGRESS RESET) */
+    const STORAGE_KEY = 'morphology_studio_db_v3';
+
     let db = {
       teachers: [
-        { email: CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase(), name: "Lead Teacher", is_admin: true }
+        { email: CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase(), name: "Liam McDermott", is_admin: true }
       ],
-      classes: [
-        { code: "OWL204", name: "Sample Classroom (OWL204)", teacher_email: CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase() }
-      ],
-      students: [
-        { id: "stu_1", class_code: "OWL204", name: "Maya S.", avatar: "🦊", pin: [], words_by_unit: { "set1_un-": ["unhappy", "unlock", "unsafe", "unzip", "undo"] }, test_results: [] },
-        { id: "stu_2", class_code: "OWL204", name: "Liam K.", avatar: "🐻", pin: ["🦉", "🐻"], words_by_unit: {}, test_results: [] },
-        { id: "stu_3", class_code: "OWL204", name: "Sophia R.", avatar: "🐢", pin: [], words_by_unit: {}, test_results: [] }
-      ],
-      assignments: [
-        { id: "asg_1", class_code: "OWL204", student_id: null, title: "Prefix un- Checkpoint", scope: "set1_un-", question_count: 5, due_date: "" }
-      ]
+      classes: [],
+      students: [],
+      assignments: []
     };
 
-    let activeClassCode = "OWL204";
+    let activeClassCode = "";
     let activeStudent = null;
     let activeTeacher = null;
     let pendingPinStudent = null;
@@ -1225,15 +1235,18 @@ Noah T."></textarea>
       if (urlClass) {
         activeClassCode = urlClass;
         document.getElementById('classCodeInput').value = urlClass;
+        await syncFromSupabase(activeClassCode);
+        renderLandingRoster(activeClassCode);
+      } else if (db.classes.length > 0) {
+        activeClassCode = db.classes[0].code;
+        document.getElementById('classCodeInput').value = activeClassCode;
+        renderLandingRoster(activeClassCode);
       }
-
-      await syncFromSupabase(activeClassCode);
-      renderLandingRoster(activeClassCode);
     });
 
     function loadLocalDB() {
       try {
-        const raw = localStorage.getItem('morphology_studio_db_v2');
+        const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
           const parsed = JSON.parse(raw);
           if (parsed.teachers) db.teachers = parsed.teachers;
@@ -1241,11 +1254,16 @@ Noah T."></textarea>
           if (parsed.students) db.students = parsed.students;
           if (parsed.assignments) db.assignments = parsed.assignments;
         }
+        // Ensure configured admin email is always authorized
+        const adminEmail = CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase();
+        if (!db.teachers.some(t => t.email === adminEmail)) {
+          db.teachers.unshift({ email: adminEmail, name: "Lead Teacher", is_admin: true });
+        }
       } catch (e) {}
     }
 
     function saveLocalDB() {
-      try { localStorage.setItem('morphology_studio_db_v2', JSON.stringify(db)); } catch (e) {}
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (e) {}
     }
 
     async function syncFromSupabase(classCode) {
@@ -1289,7 +1307,7 @@ Noah T."></textarea>
 
       if (!cls) {
         document.getElementById('landingClassTitle').textContent = `Class "${code}" Not Found`;
-        document.getElementById('landingClassSub').textContent = `Check your class code with your teacher, or try sample code OWL204.`;
+        document.getElementById('landingClassSub').textContent = `Ask your teacher to sign in and create a class first, or double-check your class code.`;
         return;
       }
 
@@ -1298,7 +1316,7 @@ Noah T."></textarea>
 
       const roster = db.students.filter(s => s.class_code === code);
       if (roster.length === 0) {
-        container.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:var(--color-text-muted);">No students added to this class yet. Ask your teacher to add your name!</p>`;
+        container.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:var(--color-text-muted);">No students added to this class yet. Click Teacher Sign-In above to add your roster!</p>`;
         return;
       }
 
@@ -1388,11 +1406,11 @@ Noah T."></textarea>
       window.speechSynthesis && window.speechSynthesis.cancel();
       document.getElementById('studentWorkspace').style.display = 'none';
       document.getElementById('landingScreen').style.display = 'flex';
-      renderLandingRoster(activeClassCode);
+      if (activeClassCode) renderLandingRoster(activeClassCode);
     }
 
     /* ============================================================================
-       PER-MORPHEME PROGRESS & CORE MORPHOLOGY ENGINE
+       PER-MORPHEME PROGRESS & MORPHOLOGICAL VALIDATION ENGINE
        ============================================================================ */
     function getUnitKey(setKey = currentSetKey, unitIdx = currentUnitIndex) {
       const unit = CURRICULUM[setKey][unitIdx];
@@ -1452,42 +1470,130 @@ Noah T."></textarea>
       }
     }
 
-    async function verifyOnlineDictionary(word, unit) {
-      if (!navigator.onLine) return { status: "offline" };
-      if (unit.examples.includes(word) || unit.nonExamples.includes(word)) return { status: "valid" };
-      if (dictionaryCache.has(word)) return { status: dictionaryCache.get(word) ? "valid" : "invalid" };
+    async function isWordInDictionary(word) {
+      if (!word || word.length < 2) return { valid: false, definitions: "" };
+      if (dictionaryCache.has(word)) return dictionaryCache.get(word);
 
       try {
         if (CONFIG.MERRIAM_WEBSTER_KEY) {
           const mwRes = await fetch(`https://www.dictionaryapi.com/api/v3/references/sd2/json/${encodeURIComponent(word)}?key=${CONFIG.MERRIAM_WEBSTER_KEY}`);
-          if (!mwRes.ok) return { status: "offline" };
+          if (!mwRes.ok) return { offline: true };
           const mwData = await mwRes.json();
           const exactEntry = Array.isArray(mwData) && mwData.some(item => item && typeof item === "object" && item.meta);
-          dictionaryCache.set(word, exactEntry);
-          return { status: exactEntry ? "valid" : "invalid" };
+          const result = { valid: exactEntry, definitions: JSON.stringify(mwData).toLowerCase() };
+          dictionaryCache.set(word, result);
+          return result;
         }
 
         const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
         if (res.status === 404) {
-          dictionaryCache.set(word, false);
-          return { status: "invalid" };
+          const result = { valid: false, definitions: "" };
+          dictionaryCache.set(word, result);
+          return result;
         }
-        if (!res.ok) return { status: "offline" };
+        if (!res.ok) return { offline: true };
 
         const data = await res.json();
-        const isExactHeadword = Array.isArray(data) && data.some(entry =>
-          entry &&
-          typeof entry.word === "string" &&
-          entry.word.toLowerCase() === word &&
-          Array.isArray(entry.meanings) &&
-          entry.meanings.length > 0
-        );
+        let allDefs = "";
+        const isExactHeadword = Array.isArray(data) && data.some(entry => {
+          if (!entry || typeof entry.word !== "string" || entry.word.toLowerCase() !== word) return false;
+          if (!Array.isArray(entry.meanings) || entry.meanings.length === 0) return false;
+          entry.meanings.forEach(m => {
+            (m.definitions || []).forEach(d => { allDefs += " " + (d.definition || "").toLowerCase(); });
+          });
+          return true;
+        });
 
-        dictionaryCache.set(word, isExactHeadword);
-        return { status: isExactHeadword ? "valid" : "invalid" };
+        const result = { valid: isExactHeadword, definitions: allDefs };
+        dictionaryCache.set(word, result);
+        return result;
       } catch (err) {
-        return { status: "offline" };
+        return { offline: true };
       }
+    }
+
+    function getPossibleBaseStems(word, affix, type) {
+      const stems = new Set();
+      if (type === "Prefix" && word.startsWith(affix)) {
+        const rest = word.slice(affix.length);
+        if (rest.length >= 2) stems.add(rest);
+      } else if (type === "Suffix" && word.endsWith(affix)) {
+        const rest = word.slice(0, -affix.length);
+        if (rest.length >= 2) {
+          stems.add(rest);
+          stems.add(rest + "e");
+          if (rest.endsWith("i")) {
+            stems.add(rest.slice(0, -1) + "y");
+          }
+          if (rest.length >= 3 && rest[rest.length - 1] === rest[rest.length - 2]) {
+            stems.add(rest.slice(0, -1));
+          }
+          if (affix === "es" && rest.endsWith("i")) {
+            stems.add(rest.slice(0, -1) + "y");
+          }
+        }
+      }
+      return Array.from(stems);
+    }
+
+    async function verifyMorphologicalValidity(word, unit) {
+      if (!navigator.onLine) return { status: "offline" };
+
+      if (unit.examples.includes(word)) return { status: "valid" };
+
+      const extraNonEx = EXTRA_NON_EXAMPLES[unit.id] || [];
+      if (unit.nonExamples.includes(word) || extraNonEx.includes(word)) {
+        return { status: "false_root" };
+      }
+
+      const fullCheck = await isWordInDictionary(word);
+      if (fullCheck.offline) return { status: "offline" };
+      if (!fullCheck.valid) return { status: "not_in_dict" };
+
+      const morphemeParts = currentUnitMorphemes();
+
+      if (unit.type === "Prefix" || unit.type === "Suffix") {
+        let matchedAffix = null;
+        for (const k of morphemeParts) {
+          if (unit.type === "Prefix" && word.startsWith(k) && word.length >= k.length + 2) {
+            matchedAffix = k;
+            break;
+          }
+          if (unit.type === "Suffix" && word.endsWith(k) && word.length >= k.length + 2) {
+            matchedAffix = k;
+            break;
+          }
+        }
+
+        if (!matchedAffix) return { status: "wrong_morpheme" };
+
+        const candidateBases = getPossibleBaseStems(word, matchedAffix, unit.type);
+        let foundRealBase = false;
+        for (const base of candidateBases) {
+          const baseCheck = await isWordInDictionary(base);
+          if (baseCheck.offline) return { status: "offline" };
+          if (baseCheck.valid) {
+            foundRealBase = true;
+            break;
+          }
+        }
+
+        if (!foundRealBase) {
+          return { status: "false_root" };
+        }
+
+        if (unit.id === "un-" && fullCheck.definitions) {
+          const hasNegativeSense = /\b(not|opposite|lack|reverse|remove|release|undo|free from|deprive)\b/.test(fullCheck.definitions);
+          if (!hasNegativeSense) {
+            return { status: "false_root" };
+          }
+        }
+
+        return { status: "valid" };
+      }
+
+      const hasRoot = morphemeParts.some(k => word.includes(k) && word.length >= k.length + 1);
+      return { status: hasRoot ? "valid" : "wrong_morpheme" };
     }
 
     function getRandomItem(array) { return array[Math.floor(Math.random() * array.length)]; }
@@ -1540,7 +1646,6 @@ Noah T."></textarea>
       exContainer.innerHTML = '';
       unit.examples.slice(0, 4).forEach(w => addTag(w, 'example'));
 
-      // Load ONLY words discovered for THIS specific morpheme unit
       const uKey = getUnitKey();
       const unitWords = getStudentUnitWords(activeStudent, uKey);
       unitWords.forEach(w => addTag(w, 'example'));
@@ -1591,40 +1696,32 @@ Noah T."></textarea>
       if (!word) return;
 
       const unit = CURRICULUM[currentSetKey][currentUnitIndex];
-      const morphemeParts = currentUnitMorphemes();
 
-      if (unit.nonExamples.includes(word)) {
+      btn.disabled = true;
+      btn.textContent = "Checking...";
+      const result = await verifyMorphologicalValidity(word, unit);
+      btn.disabled = false;
+      btn.textContent = "Check Word";
+
+      if (result.status === "offline") {
+        speakOwly(OWLY_DIALOGUE.offline());
+        return;
+      }
+
+      if (result.status === "not_in_dict") {
+        speakOwly(getRandomItem(OWLY_DIALOGUE.notInDictionary)(word));
+        input.value = '';
+        return;
+      }
+
+      if (result.status === "false_root") {
         addTag(word, 'nonexample');
         speakOwly(getRandomItem(OWLY_DIALOGUE.falseRoot)(word, unit.id));
         input.value = '';
         return;
       }
 
-      btn.disabled = true;
-      btn.textContent = "Checking...";
-      const check = await verifyOnlineDictionary(word, unit);
-      btn.disabled = false;
-      btn.textContent = "Check Word";
-
-      if (check.status === "offline") {
-        speakOwly(OWLY_DIALOGUE.offline());
-        return;
-      }
-
-      if (check.status !== "valid") {
-        speakOwly(getRandomItem(OWLY_DIALOGUE.notInDictionary)(word));
-        input.value = '';
-        return;
-      }
-
-      const isKnownExample = unit.examples.includes(word);
-      const matchesKey = morphemeParts.some(k => {
-        if (unit.type === "Prefix") return word.startsWith(k) && word.length >= k.length + 2;
-        if (unit.type === "Suffix") return word.endsWith(k) && word.length >= k.length + 2;
-        return word.includes(k) && word.length >= k.length + 1;
-      });
-
-      if (isKnownExample || matchesKey) {
+      if (result.status === "valid") {
         addTag(word, 'example');
         const uKey = getUnitKey();
         if (!activeStudent.words_by_unit[uKey]) activeStudent.words_by_unit[uKey] = [];
@@ -1772,7 +1869,6 @@ Noah T."></textarea>
         const qType = i % 3;
 
         if (qType === 0) {
-          // Question Type 1: Morpheme Meaning
           const distractors = CURRICULUM.set1
             .filter(u => u.meaning !== unit.meaning)
             .sort(() => Math.random() - 0.5)
@@ -1784,7 +1880,6 @@ Noah T."></textarea>
             options: [unit.meaning, ...distractors].sort(() => Math.random() - 0.5)
           });
         } else if (qType === 1) {
-          // Question Type 2: Identify True Affixed Word vs False Root
           const correct = getRandomItem(unit.examples);
           const wrong1 = getRandomItem(unit.nonExamples) || "uncle";
           const wrong2 = "mountain";
@@ -1794,7 +1889,6 @@ Noah T."></textarea>
             options: [correct, wrong1, wrong2].sort(() => Math.random() - 0.5)
           });
         } else {
-          // Question Type 3: Spot the False Root ("Uncle Rule")
           const falseRoot = getRandomItem(unit.nonExamples) || "uncle";
           const trueWords = unit.examples.slice(0, 2);
           questions.push({
@@ -2031,6 +2125,7 @@ Noah T."></textarea>
       }
 
       activeTeacher = authorized;
+      feedback.textContent = "";
       closeModal('teacherAuthModal');
       openTeacherDashboard();
     }
@@ -2047,26 +2142,38 @@ Noah T."></textarea>
 
       const sel = document.getElementById('teacherClassSelect');
       sel.innerHTML = '';
-      myClasses.forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c.code;
-        opt.textContent = `${c.name} (${c.code})`;
-        sel.appendChild(opt);
-      });
 
-      if (myClasses.length > 0) {
+      if (myClasses.length === 0) {
+        const opt = document.createElement('option');
+        opt.value = "";
+        opt.textContent = "No classes yet — click + New Class";
+        sel.appendChild(opt);
+        activeClassCode = "";
+        document.getElementById('shareableClassUrl').textContent = "Click '+ New Class' to create your student link";
+        renderTeacherRosterTable();
+        renderTeacherAssignmentsTable();
+      } else {
+        myClasses.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c.code;
+          opt.textContent = `${c.name} (${c.code})`;
+          sel.appendChild(opt);
+        });
         activeClassCode = myClasses[0].code;
         sel.value = activeClassCode;
+        await onTeacherClassChange();
       }
 
-      await onTeacherClassChange();
       renderStaffTable();
     }
 
     function exitTeacherDashboard() {
       document.getElementById('teacherDashboard').style.display = 'none';
       document.getElementById('landingScreen').style.display = 'flex';
-      renderLandingRoster(activeClassCode);
+      if (activeClassCode) {
+        document.getElementById('classCodeInput').value = activeClassCode;
+        renderLandingRoster(activeClassCode);
+      }
     }
 
     function switchTeacherTab(tab) {
@@ -2082,6 +2189,7 @@ Noah T."></textarea>
     async function onTeacherClassChange() {
       const sel = document.getElementById('teacherClassSelect');
       if (sel.value) activeClassCode = sel.value;
+      if (!activeClassCode) return;
 
       const baseUrl = window.location.href.split('?')[0];
       document.getElementById('shareableClassUrl').textContent = `${baseUrl}?class=${activeClassCode}`;
@@ -2093,6 +2201,7 @@ Noah T."></textarea>
 
     function copyClassLink() {
       const link = document.getElementById('shareableClassUrl').textContent;
+      if (!activeClassCode) { alert("Please click '+ New Class' first to generate your class link."); return; }
       navigator.clipboard && navigator.clipboard.writeText(link);
       alert(`Copied classroom link:\n${link}`);
     }
@@ -2107,6 +2216,8 @@ Noah T."></textarea>
       saveLocalDB();
       if (supabaseClient) await supabaseClient.from('classes').upsert(newCls);
 
+      document.getElementById('newClassNameInput').value = '';
+      document.getElementById('newClassCodeInput').value = '';
       closeModal('createClassModal');
       openTeacherDashboard();
     }
@@ -2115,7 +2226,12 @@ Noah T."></textarea>
       const tbody = document.getElementById('teacherRosterTableBody');
       const targetSel = document.getElementById('assignTargetStudent');
       tbody.innerHTML = '';
-      targetSel.innerHTML = `<option value="">Entire Class (${activeClassCode})</option>`;
+      targetSel.innerHTML = activeClassCode ? `<option value="">Entire Class (${activeClassCode})</option>` : `<option value="">Create a class first</option>`;
+
+      if (!activeClassCode) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color:var(--color-text-muted);">Click <strong>+ New Class</strong> above to create your classroom first!</td></tr>`;
+        return;
+      }
 
       const roster = db.students.filter(s => s.class_code === activeClassCode);
       if (roster.length === 0) {
@@ -2150,11 +2266,12 @@ Noah T."></textarea>
     }
 
     async function addSingleStudent() {
+      if (!activeClassCode) { alert("Please click '+ New Class' at the top first!"); return; }
       const name = document.getElementById('newStudentName').value.trim();
       const avatar = document.getElementById('newStudentAnimal').value;
       const p1 = document.getElementById('newStudentPin1').value;
       const p2 = document.getElementById('newStudentPin2').value;
-      if (!name || !activeClassCode) return;
+      if (!name) return;
 
       const student = {
         id: `stu_${Date.now()}`,
@@ -2175,9 +2292,10 @@ Noah T."></textarea>
     }
 
     async function bulkAddStudents() {
+      if (!activeClassCode) { alert("Please click '+ New Class' at the top first!"); return; }
       const raw = document.getElementById('bulkStudentNames').value;
       const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
-      if (!lines.length || !activeClassCode) return;
+      if (!lines.length) return;
 
       const newStudents = lines.map((name, idx) => ({
         id: `stu_${Date.now()}_${idx}`,
@@ -2198,12 +2316,13 @@ Noah T."></textarea>
     }
 
     async function createAssignment() {
+      if (!activeClassCode) { alert("Please click '+ New Class' at the top first!"); return; }
       const title = document.getElementById('assignTitle').value.trim();
       const scope = document.getElementById('assignScope').value;
       const question_count = parseInt(document.getElementById('assignQuestionCount').value, 10);
       const student_id = document.getElementById('assignTargetStudent').value || null;
       const due_date = document.getElementById('assignDueDate').value;
-      if (!title || !activeClassCode) return;
+      if (!title) return;
 
       const asg = {
         id: `asg_${Date.now()}`,
@@ -2278,6 +2397,7 @@ Noah T."></textarea>
     }
 
     function exportClassCSV() {
+      if (!activeClassCode) return;
       const roster = db.students.filter(s => s.class_code === activeClassCode);
       const rows = [["Class Code", "Student Name", "Avatar", "Mastered Units", "Total Words", "Average Test Score"]];
       roster.forEach(s => {
