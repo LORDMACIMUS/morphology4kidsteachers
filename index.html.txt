@@ -1,0 +1,2302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Morphology Explorer - Classroom Studio</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --color-bg: #F4F7F2;
+      --color-card: #FFFFFF;
+      --color-bark: #3D405B;
+      --color-sage: #81B29A;
+      --color-terracotta: #E07A5F;
+      --color-terracotta-dark: #C85A3F;
+      --color-amber: #F2CC8F;
+      --color-amber-dark: #D8AA64;
+      --color-border: #E0E5DD;
+      --color-text-muted: #6C757D;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-main); }
+    body { background-color: var(--color-bg); color: var(--color-bark); min-height: 100vh; }
+
+    /* LANDING / PICTURE LOGIN SCREEN */
+    .landing-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 20px;
+      background: linear-gradient(180deg, #EAEFE7 0%, #F4F7F2 100%);
+    }
+    .landing-header {
+      width: 100%;
+      max-width: 960px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .landing-card {
+      background: var(--color-card);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      width: 100%;
+      max-width: 960px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+    }
+    .class-code-bar {
+      display: flex;
+      gap: 10px;
+      max-width: 440px;
+      margin: 0 auto 24px;
+    }
+    .class-code-bar input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    .roster-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 14px;
+      margin-top: 16px;
+    }
+    .student-tile {
+      background: #FDFBF7;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 18px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .student-tile:hover {
+      transform: translateY(-3px);
+      border-color: var(--color-terracotta);
+      background: #FFF9F6;
+    }
+    .student-tile-avatar { font-size: 2.8rem; margin-bottom: 8px; display: block; }
+    .student-tile-name { font-weight: 800; font-size: 1rem; color: var(--color-bark); }
+    .student-tile-lock { font-size: 0.72rem; color: var(--color-text-muted); margin-top: 4px; }
+
+    /* PICTURE PASSCODE GRID */
+    .animal-picker-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .animal-btn {
+      background: #F8FAF7;
+      border: 2px solid var(--color-border);
+      border-radius: 12px;
+      padding: 12px 6px;
+      font-size: 1.8rem;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .animal-btn span { font-size: 0.7rem; font-weight: 700; color: var(--color-bark); }
+    .animal-btn.selected { border-color: var(--color-terracotta); background: #FCE4D6; }
+
+    /* MAIN STUDENT WORKSPACE */
+    .app-container { display: none; grid-template-columns: 330px 1fr; min-height: 100vh; width: 100%; }
+    @media (max-width: 900px) { .app-container { grid-template-columns: 1fr; } }
+
+    .left-panel {
+      background: #EAEFE7;
+      border-right: 2px solid var(--color-border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .header-box { text-align: center; }
+    .header-box h1 { font-size: 1.3rem; color: var(--color-bark); margin-bottom: 2px; }
+    .header-box p { font-size: 0.78rem; color: var(--color-text-muted); }
+
+    .online-status-bar {
+      background: #D1E7DD;
+      color: #0F5132;
+      border: 1px solid #BADBCC;
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-align: center;
+    }
+    .online-status-bar.offline { background: #F8D7DA; color: #842029; border-color: #F5C2C7; }
+
+    .account-bar {
+      background: var(--color-card);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      gap: 8px;
+    }
+    .account-info { display: flex; flex-direction: column; gap: 2px; }
+    .account-name { font-weight: 700; color: var(--color-bark); }
+    .account-plan { font-size: 0.7rem; color: var(--color-sage); font-weight: 700; }
+    .btn-small {
+      background: var(--color-bark);
+      color: white;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-small:hover { opacity: 0.9; }
+
+    .owly-stage {
+      background: var(--color-card);
+      border-radius: var(--radius-md);
+      padding: 14px 12px;
+      border: 2px solid var(--color-border);
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
+
+    .speech-bubble {
+      background: #FDFBF7;
+      border: 2px solid var(--color-amber-dark);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+      font-size: 0.86rem;
+      color: var(--color-bark);
+      position: relative;
+      margin-bottom: 12px;
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      line-height: 1.35;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+    .speech-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 10px 8px 0;
+      border-style: solid;
+      border-color: var(--color-amber-dark) transparent;
+    }
+
+    .owl-canvas-container { width: 96px; height: 105px; margin: 0 auto; }
+    .owl-canvas-container.bounce { animation: owlyTalk 0.5s ease infinite alternate; }
+    @keyframes owlyTalk { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+
+    .tier-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+    .tier-starter { background: #E2E8F0; color: #475569; }
+    .tier-good { background: #D1E7DD; color: #0F5132; }
+    .tier-amazing { background: #CFE2FF; color: #084298; }
+    .tier-awesome { background: #FFF3CD; color: #664D03; }
+
+    .voice-card, .progress-card {
+      background: var(--color-card);
+      border-radius: var(--radius-md);
+      padding: 12px 14px;
+      border: 2px solid var(--color-border);
+    }
+    .voice-card h3, .progress-card h3 {
+      font-size: 0.86rem;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .slider-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; gap: 8px; }
+    .slider-row input { flex: 1; }
+
+    .progress-bar-bg { background: #E2E8F0; height: 10px; border-radius: 6px; overflow: hidden; margin-bottom: 6px; }
+    .progress-bar-fill { background: var(--color-terracotta); height: 100%; width: 0%; transition: width 0.4s ease; }
+    .progress-stats { display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--color-text-muted); margin-bottom: 10px; }
+    .action-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn-outline {
+      background: #F8FAF7;
+      border: 1px solid var(--color-border);
+      color: var(--color-bark);
+      padding: 7px 8px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-outline:hover { border-color: var(--color-terracotta); background: #FDFBF7; }
+
+    .right-panel { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+    /* ASSIGNED TASKS BANNER */
+    .tasks-banner {
+      background: #FFF8EB;
+      border: 2px solid var(--color-amber-dark);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .tasks-banner-title { font-weight: 800; font-size: 0.9rem; color: var(--color-bark); display: flex; align-items: center; gap: 6px; }
+    .task-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .task-chip {
+      background: white;
+      border: 2px solid var(--color-terracotta);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .task-chip.completed {
+      border-color: var(--color-sage);
+      background: #E2F0D9;
+      color: #385723;
+    }
+
+    .nav-tabs { display: flex; gap: 8px; border-bottom: 2px solid var(--color-border); padding-bottom: 10px; flex-wrap: wrap; }
+    .tab-btn {
+      background: var(--color-card);
+      border: 2px solid var(--color-border);
+      padding: 7px 13px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: var(--color-bark);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .tab-btn:hover { border-color: var(--color-terracotta); }
+    .tab-btn.active { background: var(--color-terracotta); color: white; border-color: var(--color-terracotta-dark); }
+
+    .morpheme-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      background: #EAEFE7;
+      padding: 10px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--color-border);
+    }
+    .morpheme-pill {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      padding: 5px 11px;
+      border-radius: 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .morpheme-pill:hover { border-color: var(--color-terracotta); }
+    .morpheme-pill.active { background: var(--color-bark); color: white; border-color: var(--color-bark); }
+    .morpheme-pill.mastered { border-color: #81B29A; background: #E2F0D9; color: #2D4A1C; }
+    .morpheme-pill.active.mastered { background: var(--color-bark); color: #FFF3CD; }
+
+    .lesson-card {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--color-border);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .unit-banner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #FDFBF7;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      border-left: 6px solid var(--color-terracotta);
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .unit-title { font-size: 1.45rem; color: var(--color-bark); font-weight: 800; }
+    .unit-meaning { font-size: 0.98rem; color: var(--color-terracotta-dark); font-weight: 600; }
+
+    .step-section { background: var(--color-bg); border-radius: var(--radius-md); padding: 14px 16px; border: 1px solid var(--color-border); }
+    .step-title { font-size: 0.94rem; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .step-number {
+      background: var(--color-bark);
+      color: white;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+    }
+
+    .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .input-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.95rem;
+      outline: none;
+    }
+    .input-row input:focus { border-color: var(--color-terracotta); }
+    .btn-submit {
+      background: var(--color-terracotta);
+      color: white;
+      border: none;
+      padding: 0 18px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .word-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-height: 38px;
+      padding: 8px;
+      background: var(--color-card);
+      border-radius: var(--radius-sm);
+      border: 1px dashed var(--color-border);
+    }
+    .tag {
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+    .tag-example { background: #E2F0D9; color: #385723; border: 1px solid #C5E0B4; }
+    .tag-nonexample { background: #FCE4D6; color: #C65911; border: 1px solid #F8CBAD; }
+
+    .fluency-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-top: 8px; }
+    @media (max-width: 700px) { .fluency-grid { grid-template-columns: repeat(4, 1fr); } }
+    .fluency-cell {
+      background: var(--color-card);
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 0.84rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .fluency-cell:hover { background: var(--color-amber); }
+
+    /* GRADED MASTERY TEST WORKSPACE */
+    .quiz-container {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--color-border);
+      padding: 26px;
+      display: none;
+    }
+    .quiz-progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--color-text-muted);
+    }
+    .quiz-question { font-size: 1.15rem; font-weight: 700; margin-bottom: 16px; }
+    .quiz-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .quiz-opt-btn {
+      background: var(--color-bg);
+      border: 2px solid var(--color-border);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      text-align: left;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .quiz-opt-btn:hover:not(:disabled) { border-color: var(--color-terracotta); background: #FDFBF7; }
+
+    /* TEACHER DASHBOARD SCREEN */
+    .teacher-screen {
+      display: none;
+      min-height: 100vh;
+      padding: 24px;
+      background: var(--color-bg);
+    }
+    .teacher-shell {
+      max-width: 1120px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .teacher-topbar {
+      background: var(--color-card);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .teacher-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .teacher-panel-card {
+      background: var(--color-card);
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-lg);
+      padding: 22px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 850px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(43, 30, 22, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+    .modal-box {
+      background: var(--color-card);
+      border-radius: var(--radius-lg);
+      border: 2px solid var(--color-border);
+      max-width: 560px;
+      width: 100%;
+      padding: 26px;
+      position: relative;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    .modal-close { position: absolute; top: 16px; right: 18px; background: none; border: none; font-size: 1.3rem; cursor: pointer; }
+    .modal-title { font-size: 1.35rem; font-weight: 800; margin-bottom: 8px; }
+    .modal-sub { font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 16px; line-height: 1.4; }
+    .form-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .form-field label { font-size: 0.82rem; font-weight: 700; }
+    .form-field input, .form-field select, .form-field textarea {
+      padding: 10px 12px;
+      border: 2px solid var(--color-border);
+      border-radius: var(--radius-sm);
+      font-size: 0.92rem;
+    }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 16px; }
+    .report-table th, .report-table td { border-bottom: 1px solid var(--color-border); padding: 10px 8px; text-align: left; }
+    .report-table tr.clickable:hover { background: #FDFBF7; cursor: pointer; }
+
+    #certificatePrintArea { display: none; }
+    @media print {
+      body * { visibility: hidden; }
+      #certificatePrintArea, #certificatePrintArea * { visibility: visible; }
+      #certificatePrintArea { display: flex !important; position: fixed; inset: 0; background: white; align-items: center; justify-content: center; padding: 40px; }
+      .cert-border { border: 12px double #3D405B; padding: 48px; text-align: center; width: 100%; max-width: 800px; border-radius: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       VIEW 1: STUDENT CLASSROOM PICTURE-LOGIN LANDING PAGE
+       ========================================================================== -->
+  <div class="landing-screen" id="landingScreen">
+    <div class="landing-header">
+      <div>
+        <h1 style="font-size:1.65rem; color:var(--color-bark);">🦉 Morphology Explorer</h1>
+        <p style="font-size:0.9rem; color:var(--color-text-muted);">Classroom Word Study Studio</p>
+      </div>
+      <button class="btn-small" style="padding:10px 16px; font-size:0.85rem;" onclick="openModal('teacherAuthModal')">
+        👩‍🏫 Teacher Sign-In
+      </button>
+    </div>
+
+    <div class="landing-card">
+      <div style="text-align:center; margin-bottom:18px;">
+        <h2 style="font-size:1.35rem; margin-bottom:6px;" id="landingClassTitle">Enter Your Class Code</h2>
+        <p style="font-size:0.9rem; color:var(--color-text-muted);" id="landingClassSub">
+          Type your teacher's class code below, or click your name and animal picture if your class is shown!
+        </p>
+      </div>
+
+      <div class="class-code-bar">
+        <input type="text" id="classCodeInput" maxlength="12" placeholder="e.g. OWL204" onkeydown="if(event.key==='Enter') loadClassByCode()">
+        <button class="btn-submit" style="padding:0 20px;" onclick="loadClassByCode()">Open Class</button>
+      </div>
+
+      <div id="classRosterContainer" class="roster-grid"></div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       VIEW 2: MAIN STUDENT MORPHOLOGY WORKSPACE
+       ========================================================================== -->
+  <div class="app-container" id="studentWorkspace">
+    <aside class="left-panel">
+      <div class="header-box">
+        <h1>Morphology Explorer</h1>
+        <p id="workspaceClassLabel">Classroom Studio</p>
+      </div>
+
+      <div class="online-status-bar" id="onlineStatusBar">● Online Dictionary Active</div>
+
+      <div class="account-bar">
+        <div class="account-info">
+          <span class="account-name" id="displayStudentName">🦉 Student</span>
+          <span class="account-plan" id="syncStatusLabel">● Saved Automatically</span>
+        </div>
+        <button class="btn-small" onclick="logoutStudent()">Switch User</button>
+      </div>
+
+      <div class="owly-stage">
+        <div class="speech-bubble" id="owlySpeech">
+          Hoot! Welcome word detective! Select a prefix, suffix, or root to begin.
+        </div>
+        
+        <div class="owl-canvas-container" id="owlyAvatarContainer">
+          <svg viewBox="0 0 100 110" width="100%" height="100%">
+            <circle id="owlCrownGlow" cx="50" cy="55" r="45" fill="none" stroke="#FFD700" stroke-width="3" stroke-dasharray="4 2" opacity="0"/>
+            <ellipse cx="50" cy="65" rx="34" ry="38" fill="#8B5A2B"/>
+            <ellipse cx="50" cy="68" rx="24" ry="28" fill="#F4E8C1"/>
+            <ellipse cx="20" cy="68" rx="8" ry="20" fill="#6F421B" transform="rotate(15 20 68)"/>
+            <ellipse cx="80" cy="68" rx="8" ry="20" fill="#6F421B" transform="rotate(-15 80 68)"/>
+            <polygon points="25,32 35,15 42,30" fill="#6F421B"/>
+            <polygon points="75,32 65,15 58,30" fill="#6F421B"/>
+            <circle cx="50" cy="42" r="28" fill="#8B5A2B"/>
+            <circle cx="38" cy="40" r="12" fill="#FFFFFF"/>
+            <circle cx="62" cy="40" r="12" fill="#FFFFFF"/>
+            <circle cx="38" cy="40" r="6" fill="#2B1E16"/>
+            <circle cx="62" cy="40" r="6" fill="#2B1E16"/>
+            <circle cx="40" cy="38" r="2" fill="#FFFFFF"/>
+            <circle cx="64" cy="38" r="2" fill="#FFFFFF"/>
+            <polygon points="50,44 45,54 55,54" fill="#E07A5F"/>
+            <g id="detectiveHat" opacity="0">
+              <path d="M 28 26 Q 50 14 72 26 Z" fill="#4A3525"/>
+              <rect x="22" y="24" width="56" height="4" rx="2" fill="#362517"/>
+            </g>
+            <g id="goldenCrown" opacity="0">
+              <polygon points="32,18 36,5 44,14 50,2 56,14 64,5 68,18" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
+            </g>
+          </svg>
+        </div>
+
+        <div>
+          <span class="tier-badge tier-starter" id="owlyTier">Starter Detective</span>
+        </div>
+      </div>
+
+      <div class="voice-card">
+        <h3>
+          <span>Owly's Reading Speed</span>
+          <button style="border:none; background:none; cursor:pointer; font-weight:700;" onclick="testOwlyVoice()">🔊 Test</button>
+        </h3>
+        <div class="slider-row">
+          <label for="rateSlider">Speed:</label>
+          <input type="range" id="rateSlider" min="0.6" max="1.2" step="0.05" value="0.9">
+        </div>
+      </div>
+
+      <!-- PER-MORPHEME MASTERY BAR -->
+      <div class="progress-card">
+        <h3>
+          <span id="unitProgressHeading">Unit Mastery (un-)</span>
+          <span id="wordsFoundCount" style="color:var(--color-terracotta);">0 / 15</span>
+        </h3>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="unitProgressBar"></div>
+        </div>
+        <div class="progress-stats">
+          <span id="milestoneTarget">Next Rank: 5 Words</span>
+          <span id="totalStudentWordsLabel">Total: 0 Words</span>
+        </div>
+        <div class="action-row">
+          <button class="btn-outline" onclick="openStudentReportModal()">📊 My Progress</button>
+          <button class="btn-outline" onclick="printCertificate()">🎓 Certificate</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="right-panel">
+      <!-- ASSIGNED TASKS BANNER -->
+      <div class="tasks-banner" id="assignedTasksBanner">
+        <div class="tasks-banner-title">📋 Assigned Teacher Tasks (Click to Start Test)</div>
+        <div class="task-chips" id="assignedTaskChips"></div>
+      </div>
+
+      <nav class="nav-tabs">
+        <button class="tab-btn active" onclick="switchSet(1)">Set 1: Grades ≤ 3</button>
+        <button class="tab-btn" onclick="switchSet(2)">Set 2: Grades 3–4</button>
+        <button class="tab-btn" onclick="switchSet(3)">Set 3: Grades 4–5+</button>
+        <button class="tab-btn" style="margin-left:auto; background:var(--color-amber);" onclick="startPracticeQuiz()">Practice Quiz 📝</button>
+      </nav>
+
+      <div class="morpheme-selector" id="morphemeSelector"></div>
+
+      <section class="lesson-card" id="lessonWorkspace">
+        <div class="unit-banner">
+          <div>
+            <div class="unit-title" id="unitTitle">un-</div>
+            <div style="font-size: 0.85rem; color: var(--color-text-muted);" id="unitType">Prefix</div>
+          </div>
+          <div class="unit-meaning" id="unitMeaning">Meaning: not</div>
+        </div>
+
+        <div class="step-section">
+          <div class="step-title"><span class="step-number">1</span> Morpheme Overview</div>
+          <p id="unitInstruction" style="font-size: 0.9rem; line-height: 1.4;"></p>
+        </div>
+
+        <div class="step-section">
+          <div class="step-title"><span class="step-number">2</span> Example Word Discovery</div>
+          <div class="input-row">
+            <input type="text" id="wordInput" maxlength="24" placeholder="Type a real dictionary word using this morpheme..." onkeydown="if(event.key==='Enter') submitWord()">
+            <button class="btn-submit" id="checkWordBtn" onclick="submitWord()">Check Word</button>
+          </div>
+          <div class="word-tags" id="examplesContainer"></div>
+        </div>
+
+        <div class="step-section">
+          <div class="step-title"><span class="step-number">3</span> Non-Example Detector ("Uncle" Rule)</div>
+          <p style="font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 8px;">
+            Words that look like they contain the affix but do NOT share the root meaning get sorted here.
+          </p>
+          <div class="word-tags" id="nonExamplesContainer"></div>
+        </div>
+
+        <div class="step-section">
+          <div class="step-title"><span class="step-number">4</span> Speed Reading Fluency Grid</div>
+          <p style="font-size: 0.8rem; color: var(--color-text-muted);">Click each word as fast as you can read it!</p>
+          <div class="fluency-grid" id="fluencyGrid"></div>
+        </div>
+      </section>
+
+      <!-- MULTI-QUESTION GRADED MASTERY TEST WORKSPACE -->
+      <section class="quiz-container" id="quizWorkspace">
+        <div class="quiz-progress-header">
+          <span id="quizTitle">Mastery Test</span>
+          <span id="quizStepCounter">Question 1 of 6</span>
+        </div>
+        <div class="quiz-question" id="quizQuestion">Loading question...</div>
+        <div class="quiz-options" id="quizOptions"></div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn-submit" id="quizNextBtn" style="padding: 10px 20px; display:none;" onclick="nextQuizQuestion()">Next Question →</button>
+          <button class="btn-outline" style="padding: 10px 16px;" onclick="closeQuiz()">Exit to Lesson Studio</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ==========================================================================
+       VIEW 3: TEACHER DASHBOARD (ROSTER, PROGRESS INSPECTOR, ASSIGNMENTS, STAFF)
+       ========================================================================== -->
+  <div class="teacher-screen" id="teacherDashboard">
+    <div class="teacher-shell">
+      <div class="teacher-topbar">
+        <div>
+          <h1 style="font-size:1.4rem;">👩‍🏫 Teacher Control Center</h1>
+          <p style="font-size:0.84rem; color:var(--color-text-muted);" id="teacherWelcomeLabel">Signed in as Teacher</p>
+        </div>
+        <div class="teacher-tabs">
+          <button class="tab-btn active" id="tTabRoster" onclick="switchTeacherTab('roster')">1. Class Roster & Progress</button>
+          <button class="tab-btn" id="tTabAssign" onclick="switchTeacherTab('assign')">2. Assign Mastery Tests</button>
+          <button class="tab-btn" id="tTabStaff" onclick="switchTeacherTab('staff')">3. Manage Teachers</button>
+          <button class="btn-small" onclick="exitTeacherDashboard()">Back to Classroom</button>
+        </div>
+      </div>
+
+      <!-- CLASS SELECTOR & SHAREABLE LINK BAR -->
+      <div class="teacher-panel-card" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <label style="font-weight:700; font-size:0.88rem;">Active Class:</label>
+          <select id="teacherClassSelect" style="padding:8px 12px; border:2px solid var(--color-border); border-radius:8px; font-weight:700;" onchange="onTeacherClassChange()"></select>
+          <button class="btn-outline" onclick="openModal('createClassModal')">+ New Class</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span style="font-size:0.8rem; color:var(--color-text-muted);">Student Link:</span>
+          <code id="shareableClassUrl" style="background:#F4F7F2; padding:6px 10px; border-radius:6px; font-size:0.8rem; border:1px solid var(--color-border);"></code>
+          <button class="btn-submit" style="padding:7px 12px; font-size:0.8rem;" onclick="copyClassLink()">Copy Link</button>
+        </div>
+      </div>
+
+      <!-- TAB 1: ROSTER & STUDENT PROGRESS -->
+      <div id="teacherTabRoster" class="grid-2">
+        <div class="teacher-panel-card">
+          <h2 style="font-size:1.1rem; margin-bottom:10px;">Student Roster & Progress</h2>
+          <p style="font-size:0.82rem; color:var(--color-text-muted); margin-bottom:12px;">
+            Click any student row to inspect their per-morpheme progress and test history.
+          </p>
+          <table class="report-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Passcode</th>
+                <th>Mastered Units</th>
+                <th>Total Words</th>
+                <th>Avg Test</th>
+              </tr>
+            </thead>
+            <tbody id="teacherRosterTableBody"></tbody>
+          </table>
+          <button class="btn-outline" onclick="exportClassCSV()">📥 Export Full Class CSV</button>
+        </div>
+
+        <div class="teacher-panel-card">
+          <h2 style="font-size:1.1rem; margin-bottom:10px;">Add Students to Class</h2>
+          <div class="form-field">
+            <label>Student First Name (or First + Last Initial)</label>
+            <input type="text" id="newStudentName" placeholder="e.g., Maya S.">
+          </div>
+          <div class="form-field">
+            <label>Animal Character Avatar</label>
+            <select id="newStudentAnimal"></select>
+          </div>
+          <div class="form-field">
+            <label>Optional 2-Animal Secret Passcode (Leave blank for 1-tap login)</label>
+            <div style="display:flex; gap:8px;">
+              <select id="newStudentPin1" style="flex:1;"></select>
+              <select id="newStudentPin2" style="flex:1;"></select>
+            </div>
+          </div>
+          <button class="btn-submit" style="padding:10px 16px; width:100%; margin-bottom:16px;" onclick="addSingleStudent()">+ Add Student</button>
+
+          <hr style="border:none; border-top:1px solid var(--color-border); margin:14px 0;">
+          <div class="form-field">
+            <label>Or Bulk Paste Student Names (One per line — auto-assigns animal icons)</label>
+            <textarea id="bulkStudentNames" rows="3" placeholder="Liam K.
+Sophia R.
+Noah T."></textarea>
+          </div>
+          <button class="btn-outline" style="width:100%;" onclick="bulkAddStudents()">Bulk Add Roster</button>
+        </div>
+      </div>
+
+      <!-- TAB 2: ASSIGN MASTERY TESTS -->
+      <div id="teacherTabAssign" class="grid-2" style="display:none;">
+        <div class="teacher-panel-card">
+          <h2 style="font-size:1.1rem; margin-bottom:10px;">Assign a Mastery Test</h2>
+          <div class="form-field">
+            <label>Task Title</label>
+            <input type="text" id="assignTitle" placeholder="e.g., Prefix un- & re- Checkpoint">
+          </div>
+          <div class="form-field">
+            <label>Test Scope (Specific Morpheme or Whole Set)</label>
+            <select id="assignScope"></select>
+          </div>
+          <div class="form-field">
+            <label>Number of Questions</label>
+            <select id="assignQuestionCount">
+              <option value="5">5 Questions (Quick Check)</option>
+              <option value="8" selected>8 Questions (Standard Mastery)</option>
+              <option value="10">10 Questions (Unit Exam)</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label>Assign To</label>
+            <select id="assignTargetStudent"></select>
+          </div>
+          <div class="form-field">
+            <label>Optional Due Date</label>
+            <input type="date" id="assignDueDate">
+          </div>
+          <button class="btn-submit" style="padding:10px 16px; width:100%;" onclick="createAssignment()">Assign Task to Students</button>
+        </div>
+
+        <div class="teacher-panel-card">
+          <h2 style="font-size:1.1rem; margin-bottom:10px;">Active Class Assignments</h2>
+          <table class="report-table">
+            <thead>
+              <tr><th>Task</th><th>Target</th><th>Due</th><th>Action</th></tr>
+            </thead>
+            <tbody id="teacherAssignmentsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- TAB 3: MULTI-TEACHER MANAGEMENT -->
+      <div id="teacherTabStaff" class="teacher-panel-card" style="display:none;">
+        <h2 style="font-size:1.1rem; margin-bottom:8px;">Authorized Teachers</h2>
+        <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:14px;">
+          Add colleague email addresses below so other teachers can sign in, create their own class codes, and track their students.
+        </p>
+        <div style="display:flex; gap:10px; max-width:520px; margin-bottom:16px;">
+          <input type="email" id="newTeacherEmailInput" placeholder="colleague@school.edu" style="flex:1; padding:10px; border:2px solid var(--color-border); border-radius:8px;">
+          <input type="text" id="newTeacherNameInput" placeholder="Teacher Name" style="width:160px; padding:10px; border:2px solid var(--color-border); border-radius:8px;">
+          <button class="btn-submit" onclick="authorizeTeacher()">Authorize</button>
+        </div>
+        <table class="report-table">
+          <thead>
+            <tr><th>Teacher Name</th><th>Email</th><th>Role</th></tr>
+          </thead>
+          <tbody id="teacherStaffTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODALS (PICTURE PASSCODE, TEACHER AUTH, STUDENT DRILL-DOWN, CREATE CLASS)
+       ========================================================================== -->
+
+  <!-- PICTURE PASSCODE MODAL -->
+  <div class="modal-backdrop" id="picturePinModal">
+    <div class="modal-box" style="text-align:center;">
+      <button class="modal-close" onclick="closeModal('picturePinModal')">✕</button>
+      <div style="font-size:3rem;" id="pinModalAvatar">🦊</div>
+      <div class="modal-title" id="pinModalStudentName">Hi, Maya!</div>
+      <p class="modal-sub">Tap your <strong>2 secret animal pictures</strong> to unlock your notebook:</p>
+      <div style="font-size:1.6rem; min-height:38px; margin-bottom:8px;" id="pinSelectedPreview">⬜ ⬜</div>
+      <div class="animal-picker-grid" id="pinPadGrid"></div>
+      <p id="pinErrorText" style="color:var(--color-terracotta-dark); font-size:0.84rem; font-weight:700; min-height:20px;"></p>
+    </div>
+  </div>
+
+  <!-- TEACHER SIGN-IN MODAL -->
+  <div class="modal-backdrop" id="teacherAuthModal">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('teacherAuthModal')">✕</button>
+      <div class="modal-title">👩‍🏫 Teacher Sign-In</div>
+      <p class="modal-sub">Sign in with your authorized teacher email to manage classes, rosters, and assigned tests.</p>
+      <div class="form-field">
+        <label>Teacher Email</label>
+        <input type="email" id="teacherLoginEmail" placeholder="you@school.edu">
+      </div>
+      <div class="form-field">
+        <label>Password (Required when Supabase Auth is enabled)</label>
+        <input type="password" id="teacherLoginPassword" placeholder="••••••••">
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn-submit" style="padding:10px 16px; flex:1;" onclick="handleTeacherLogin('login')">Sign In to Dashboard</button>
+        <button class="btn-outline" style="padding:10px 16px;" onclick="handleTeacherLogin('signup')">First-Time Setup</button>
+      </div>
+      <p id="teacherAuthFeedback" style="color:var(--color-terracotta-dark); font-size:0.82rem; margin-top:10px;"></p>
+    </div>
+  </div>
+
+  <!-- CREATE CLASS MODAL -->
+  <div class="modal-backdrop" id="createClassModal">
+    <div class="modal-box">
+      <button class="modal-close" onclick="closeModal('createClassModal')">✕</button>
+      <div class="modal-title">Create New Class</div>
+      <div class="form-field">
+        <label>Class Name</label>
+        <input type="text" id="newClassNameInput" placeholder="e.g., Grade 3 Reading Group A">
+      </div>
+      <div class="form-field">
+        <label>Class Join Code (Letters & Numbers)</label>
+        <input type="text" id="newClassCodeInput" maxlength="10" placeholder="e.g., OWL204" style="text-transform:uppercase;">
+      </div>
+      <button class="btn-submit" style="padding:10px 16px; width:100%;" onclick="createNewClass()">Create Class</button>
+    </div>
+  </div>
+
+  <!-- STUDENT PROGRESS INSPECTOR MODAL (Used by both Student "My Progress" and Teacher Drill-Down) -->
+  <div class="modal-backdrop" id="progressInspectorModal">
+    <div class="modal-box" style="max-width:640px;">
+      <button class="modal-close" onclick="closeModal('progressInspectorModal')">✕</button>
+      <div class="modal-title" id="inspectorTitle">Student Progress Report</div>
+      <p class="modal-sub" id="inspectorSubtitle"></p>
+
+      <h3 style="font-size:0.92rem; margin-bottom:6px;">Completed Mastery Tests</h3>
+      <table class="report-table">
+        <thead>
+          <tr><th>Test / Assignment</th><th>Score</th><th>Date</th></tr>
+        </thead>
+        <tbody id="inspectorTestsBody"></tbody>
+      </table>
+
+      <h3 style="font-size:0.92rem; margin-bottom:6px;">Progress by Morpheme Unit</h3>
+      <div style="max-height:220px; overflow-y:auto; border:1px solid var(--color-border); border-radius:8px; margin-bottom:14px;">
+        <table class="report-table" style="margin-bottom:0;">
+          <thead>
+            <tr><th>Morpheme</th><th>Words Found</th><th>Discovered Words</th></tr>
+          </thead>
+          <tbody id="inspectorUnitsBody"></tbody>
+        </table>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button class="btn-submit" style="padding:10px 16px; flex:1;" onclick="exportInspectedStudentCSV()">📥 Download Student CSV</button>
+        <button class="btn-outline" style="padding:10px 16px;" onclick="printCertificate()">🎓 Print Certificate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRINTABLE CERTIFICATE TEMPLATE -->
+  <div id="certificatePrintArea">
+    <div class="cert-border">
+      <div style="font-size:3rem; margin-bottom:10px;" id="certAvatar">🦉</div>
+      <h1 style="font-size:2.2rem; color:#3D405B; margin-bottom:8px;">Certificate of Morphology Mastery</h1>
+      <p style="font-size:1.1rem; color:#6C757D; margin-bottom:24px;">This certifies that</p>
+      <h2 id="certStudentName" style="font-size:2rem; color:#E07A5F; border-bottom:2px solid #3D405B; display:inline-block; padding:0 32px 6px; margin-bottom:24px;">Student Detective</h2>
+      <p style="font-size:1.1rem; line-height:1.6; max-width:560px; margin:0 auto 28px;">
+        has demonstrated excellence in decoding prefixes, suffixes, and Greek & Latin roots, discovering <strong id="certWordCount">0</strong> valid dictionary words across <strong id="certUnitsCount">0</strong> morpheme units!
+      </p>
+      <div style="display:flex; justify-content:space-around; margin-top:40px; font-size:0.95rem; color:#3D405B;">
+        <div>Date: <span id="certDate"></span></div>
+        <div>Signed: <em>Professor Owly, Morphology Studio</em></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ============================================================================
+       SUPABASE CLOUD CONFIGURATION & SQL SETUP INSTRUCTIONS
+       ============================================================================
+       1. Create a free project at https://supabase.com
+       2. Paste your Project URL and Anon Key into CONFIG below.
+       3. In Supabase SQL Editor, run this schema to create your tables:
+
+       create table teachers (
+         email text primary key,
+         name text not null,
+         is_admin boolean default false,
+         created_at timestamptz default now()
+       );
+
+       create table classes (
+         code text primary key,
+         name text not null,
+         teacher_email text references teachers(email) on delete cascade,
+         created_at timestamptz default now()
+       );
+
+       create table students (
+         id text primary key,
+         class_code text references classes(code) on delete cascade,
+         name text not null,
+         avatar text not null,
+         pin jsonb default '[]'::jsonb,
+         words_by_unit jsonb default '{}'::jsonb,
+         test_results jsonb default '[]'::jsonb,
+         updated_at timestamptz default now()
+       );
+
+       create table assignments (
+         id text primary key,
+         class_code text references classes(code) on delete cascade,
+         student_id text, -- null means assigned to entire class
+         title text not null,
+         scope text not null,
+         question_count int default 8,
+         due_date text,
+         created_at timestamptz default now()
+       );
+
+       -- Enable public classroom read/write policies for student picture-login Chromebooks:
+       alter table teachers enable row level security;
+       alter table classes enable row level security;
+       alter table students enable row level security;
+       alter table assignments enable row level security;
+
+       create policy "Public classroom access teachers" on teachers for all using (true) with check (true);
+       create policy "Public classroom access classes" on classes for all using (true) with check (true);
+       create policy "Public classroom access students" on students for all using (true) with check (true);
+       create policy "Public classroom access assignments" on assignments for all using (true) with check (true);
+       ============================================================================ */
+
+    const CONFIG = {
+      SUPABASE_URL: "",               // Paste Supabase Project URL here
+      SUPABASE_ANON_KEY: "",          // Paste Supabase Anon Public Key here
+      ADMIN_TEACHER_EMAIL: "teacher@school.edu", // Replace with your teacher email
+      MERRIAM_WEBSTER_KEY: ""         // Optional: Free Merriam-Webster API key from dictionaryapi.com
+    };
+
+    let supabaseClient = null;
+    if (CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && window.supabase) {
+      supabaseClient = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
+    }
+
+    const ANIMAL_CHARACTERS = [
+      { emoji: "🦉", label: "Owl" },
+      { emoji: "🦊", label: "Fox" },
+      { emoji: "🐻", label: "Bear" },
+      { emoji: "🐢", label: "Turtle" },
+      { emoji: "🦁", label: "Lion" },
+      { emoji: "🐧", label: "Penguin" },
+      { emoji: "🐸", label: "Frog" },
+      { emoji: "🐨", label: "Koala" },
+      { emoji: "🐼", label: "Panda" },
+      { emoji: "🦄", label: "Unicorn" },
+      { emoji: "🐙", label: "Octopus" },
+      { emoji: "🐝", label: "Bee" }
+    ];
+
+    /* FULL 59-UNIT CURRICULUM */
+    const CURRICULUM = {
+      set1: [
+        { id: "un-", type: "Prefix", meaning: "not", examples: ["unfed", "uncut", "uncap", "undo", "unlike", "unzip", "unfair", "unlock", "unsafe", "unseen", "unhappy"], nonExamples: ["uncle", "under", "universe", "unit", "uniform"] },
+        { id: "re-", type: "Prefix", meaning: "again, back", examples: ["reset", "rerun", "refit", "recap", "remove", "repaint", "rewash", "repay", "replay"], nonExamples: ["real", "reach", "ready", "read", "rest"] },
+        { id: "pre-", type: "Prefix", meaning: "before", examples: ["prefix", "premix", "pretax", "preview", "presale", "preheat", "prewarn"], nonExamples: ["president", "pretty", "press", "present"] },
+        { id: "non-", type: "Prefix", meaning: "not, absence", examples: ["nonfat", "nonstop", "nonfood", "nonslip", "nonsense", "nondairy"], nonExamples: ["noon", "noble", "none"] },
+        { id: "over-", type: "Prefix", meaning: "too much, above", examples: ["overall", "overrun", "overlay", "overeat", "overbuy", "overflow", "overturn"], nonExamples: ["oven", "overt"] },
+        { id: "under-", type: "Prefix", meaning: "under, beneath", examples: ["undercut", "underbuy", "underarm", "underline", "underside", "underfoot"], nonExamples: ["understand"] },
+        { id: "mid-", type: "Prefix", meaning: "in the middle, part way", examples: ["midway", "midday", "midsize", "midland", "midyear", "midweek"], nonExamples: ["midge", "middle"] },
+        { id: "super-", type: "Prefix", meaning: "above, beyond, better", examples: ["superman", "supermom", "supercar", "superstar", "superhero", "superglue"], nonExamples: ["supper", "superb"] },
+        { id: "-s, -es (plural)", type: "Suffix", meaning: "more than one", examples: ["dogs", "days", "tops", "nuts", "boats", "towns", "cars", "boxes", "brushes"], nonExamples: ["yes", "bus", "lens", "gas"] },
+        { id: "-s, -es (verb)", type: "Suffix", meaning: "present tense verb", examples: ["hits", "kicks", "reads", "likes", "plays", "enjoys", "fixes", "misses"], nonExamples: ["this", "his"] },
+        { id: "-ed", type: "Suffix", meaning: "past tense verb", examples: ["kicked", "walked", "jumped", "fished", "acted", "melted", "twisted"], nonExamples: ["red", "bed", "seed", "shed"] },
+        { id: "-ing", type: "Suffix", meaning: "present tense verb", examples: ["acting", "asking", "waiting", "playing", "seeing", "running", "reading"], nonExamples: ["king", "ring", "sing", "bring", "thing"] },
+        { id: "-ly", type: "Suffix", meaning: "adverb", examples: ["hardly", "shyly", "softly", "openly", "loudly", "quietly", "happily"], nonExamples: ["fly", "family", "jelly", "belly"] },
+        { id: "-er (person)", type: "Suffix", meaning: "someone who", examples: ["maker", "rider", "voter", "teacher", "farmer", "player", "printer"], nonExamples: ["water", "butter", "paper", "sister", "brother"] },
+        { id: "-or", type: "Suffix", meaning: "someone who, something that", examples: ["doctor", "actor", "editor", "author", "creator", "inspector", "operator"], nonExamples: ["door", "floor", "color"] },
+        { id: "-er/-est", type: "Suffix", meaning: "more / most", examples: ["faster", "fastest", "slower", "slowest", "stronger", "strongest"], nonExamples: ["monster", "forest", "west"] },
+        { id: "-less", type: "Suffix", meaning: "without", examples: ["toyless", "bedless", "winless", "endless", "harmless", "homeless"], nonExamples: ["bless", "unless", "dress"] },
+        { id: "-ful", type: "Suffix", meaning: "full of", examples: ["joyful", "useful", "artful", "helpful", "thankful", "cheerful"], nonExamples: ["awful"] },
+        { id: "-y", type: "Suffix", meaning: "very much like", examples: ["foxy", "sticky", "rocky", "windy", "messy", "bloody", "sunny"], nonExamples: ["sky", "cry", "body", "baby"] }
+      ],
+      set2: [
+        { id: "in-/im-", type: "Prefix", meaning: "not", examples: ["impossible", "incapable", "inedible", "intolerant", "invalid", "indirect", "immature", "impatient", "imperfect", "impolite", "inactive", "invisible"], nonExamples: ["inch", "insect", "image", "into", "inside", "important", "imagine"] },
+        { id: "dis-", type: "Prefix", meaning: "not, apart, opposite", examples: ["disagree", "disloyal", "disprove", "disadvantage", "dishonest", "disorder"], nonExamples: ["distance", "disk", "dish"] },
+        { id: "mis-", type: "Prefix", meaning: "wrongly, badly", examples: ["misuse", "mishap", "misfit", "mislead", "misread", "mistrust", "misjudge"], nonExamples: ["miss", "mission", "mist"] },
+        { id: "semi-", type: "Prefix", meaning: "half, partly", examples: ["semisoft", "semihard", "semifinal", "semisolid", "semiround", "semicircle"], nonExamples: ["seminar"] },
+        { id: "fore-", type: "Prefix", meaning: "before, front", examples: ["forearm", "foreman", "foresee", "foreleg", "forecast", "forewarn"], nonExamples: ["forest", "foreign", "forever"] },
+        { id: "sub-", type: "Prefix", meaning: "under, below", examples: ["subsoil", "submenu", "submarine", "subway", "subplot", "subtotal"], nonExamples: ["subject"] },
+        { id: "inter-", type: "Prefix", meaning: "among, between", examples: ["internet", "interact", "intermix", "intertwine", "interstate", "international"], nonExamples: ["interest"] },
+        { id: "micro-", type: "Prefix", meaning: "tiny, one millionth", examples: ["microwave", "microchip", "microfilm", "microphone", "microscope"], nonExamples: ["microbe"] },
+        { id: "trans-", type: "Prefix", meaning: "across, beyond", examples: ["transform", "transport", "transparent", "transaction", "transfer"], nonExamples: ["transit"] },
+        { id: "anti-", type: "Prefix", meaning: "against", examples: ["antiwar", "antilock", "antispam", "antivirus", "antiseptic", "antisocial"], nonExamples: ["antique"] },
+        { id: "multi-", type: "Prefix", meaning: "many", examples: ["multiple", "multiply", "multitask", "multiplication", "multicolor"], nonExamples: ["multitude"] },
+        { id: "out-", type: "Prefix", meaning: "greater, better, more", examples: ["outwit", "outhit", "outfox", "outgrow", "outsell", "outwait"], nonExamples: ["outlet", "outside"] },
+        { id: "-able/-ible", type: "Suffix", meaning: "capable of being", examples: ["passable", "washable", "readable", "flexible", "sensible", "accessible"], nonExamples: ["table", "cable", "fable"] },
+        { id: "-ness", type: "Suffix", meaning: "condition, state of", examples: ["thickness", "clearness", "steepness", "brightness", "fairness", "kindness"], nonExamples: ["harness", "witness"] },
+        { id: "-ion/-tion/-sion", type: "Suffix", meaning: "action, condition", examples: ["action", "election", "location", "operation", "education", "protection", "division", "decision"], nonExamples: ["lion", "onion", "cushion"] },
+        { id: "-ify", type: "Suffix", meaning: "cause to be", examples: ["liquify", "purify", "clarify", "glorify", "falsify", "terrify"], nonExamples: ["notify"] },
+        { id: "-al/-ial", type: "Suffix", meaning: "relating to", examples: ["magical", "logical", "global", "verbal", "facial", "arrival", "national"], nonExamples: ["animal", "petal", "metal"] },
+        { id: "-ish", type: "Suffix", meaning: "has characteristics of", examples: ["foolish", "stylish", "greenish", "childish", "sheepish", "roundish"], nonExamples: ["fish", "dish", "wish"] },
+        { id: "-ity", type: "Suffix", meaning: "state, quality of", examples: ["activity", "security", "majority", "severity", "immunity", "legality"], nonExamples: ["city", "pity"] },
+        { id: "-ment", type: "Suffix", meaning: "state, act of", examples: ["payment", "movement", "agreement", "amusement", "equipment", "adjustment"], nonExamples: ["element", "cement", "moment"] }
+      ],
+      set3: [
+        { id: "ir-/il-", type: "Prefix", meaning: "not", examples: ["irregular", "irresponsible", "irrelevant", "illogical", "illegal", "illiterate"], nonExamples: ["iron", "island", "illness"] },
+        { id: "en-/em-", type: "Prefix", meaning: "in, within, on", examples: ["enjoy", "enable", "enlist", "encode", "entrust", "enforce", "enrich", "empower", "embrace"], nonExamples: ["energy", "enemy", "empty"] },
+        { id: "de-", type: "Prefix", meaning: "not, down", examples: ["decompose", "deselect", "descend", "declassify", "defrost", "dethrone"], nonExamples: ["desk", "deer", "deep"] },
+        { id: "counter-", type: "Prefix", meaning: "opposite, against", examples: ["counterfeit", "counterpoint", "counterpart", "counterblow", "counterattack"], nonExamples: ["count", "country", "counter"] },
+        { id: "-ive/-ative", type: "Suffix", meaning: "tending to", examples: ["active", "sensitive", "creative", "erosive", "adaptive", "decisive"], nonExamples: ["give", "hive", "live", "five"] },
+        { id: "-ist", type: "Suffix", meaning: "one who", examples: ["typist", "artist", "tourist", "chemist", "stylist", "finalist", "pianist"], nonExamples: ["list", "mist", "fist"] },
+        { id: "-ic", type: "Suffix", meaning: "relating to", examples: ["energetic", "historic", "volcanic", "atomic", "cyclic", "organic"], nonExamples: ["picnic", "magic", "music"] },
+        { id: "-ous/-ious", type: "Suffix", meaning: "full of, having", examples: ["joyous", "famous", "nervous", "glorious", "previous", "numerous"], nonExamples: ["house", "mouse", "blouse"] },
+        { id: "-en", type: "Suffix", meaning: "to cause to be", examples: ["woven", "given", "driven", "proven", "spoken", "frozen", "cheapen"], nonExamples: ["pen", "ten", "hen", "open"] },
+        { id: "aud", type: "Latin Root", meaning: "hear", examples: ["audio", "audiobook", "auditorium", "audition", "audience", "inaudible"], nonExamples: ["audit"] },
+        { id: "chron", type: "Greek Root", meaning: "time", examples: ["chronic", "chronology", "chronicle", "synchronous", "asynchronous"], nonExamples: ["chrome"] },
+        { id: "dict", type: "Latin Root", meaning: "say", examples: ["diction", "dictionary", "prediction", "dictate", "dictator", "jurisdiction"], nonExamples: ["dictum"] },
+        { id: "port", type: "Latin Root", meaning: "to carry", examples: ["import", "export", "deport", "report", "reporter", "portable", "transport"], nonExamples: ["portion"] },
+        { id: "rupt", type: "Latin Root", meaning: "to break, burst", examples: ["abrupt", "disrupt", "disruption", "erupt", "eruption", "rupture", "interrupt"], nonExamples: ["rupture"] },
+        { id: "scrib/scrip", type: "Latin Root", meaning: "write", examples: ["scribble", "script", "prescription", "scribe", "describe", "manuscript"], nonExamples: ["scrib"] },
+        { id: "spect", type: "Latin Root", meaning: "to see, observe", examples: ["inspect", "inspection", "respect", "aspect", "perspective", "respectable"], nonExamples: ["spectrum"] },
+        { id: "struct", type: "Latin Root", meaning: "to build", examples: ["structure", "construct", "construction", "instruct", "obstruct", "destruct"], nonExamples: ["strict"] },
+        { id: "tract", type: "Latin Root", meaning: "to drag or pull", examples: ["tractor", "traction", "contract", "extract", "subtract", "retract", "distract"], nonExamples: ["track"] },
+        { id: "tele", type: "Greek Root", meaning: "distant, far", examples: ["telescope", "television", "telegraph", "telecommunication", "teleport"], nonExamples: ["telephone"] },
+        { id: "vid/vis", type: "Latin Root", meaning: "to see", examples: ["video", "visit", "visitor", "visual", "vision", "visible", "invisible", "evidence"], nonExamples: ["visa"] }
+      ]
+    };
+
+    const OWLY_DIALOGUE = {
+      intros: [
+        (id, meaning) => `Hoot! Let's examine ${id}. It carries the meaning: ${meaning}. What words can you discover?`,
+        (id, meaning) => `Greetings, word detective! We are unlocking ${id}, which means ${meaning}.`,
+        (id, meaning) => `Hoot hoot! Ready to dissect words with ${id}? Remember, it means ${meaning}.`
+      ],
+      success: [
+        word => `Outstanding discovery! "${word}" is verified in the dictionary.`,
+        word => `Hoot! "${word}" fits perfectly into our word bank.`,
+        word => `Brilliant work! "${word}" demonstrates the root meaning clear as day.`,
+        word => `Bingo! "${word}" is locked in. Keep searching!`
+      ],
+      notInDictionary: [
+        word => `Hold on! "${word}" is not a standard word in our online dictionary. Check your spelling or try another word!`,
+        word => `Hoot! I searched the dictionary for "${word}", and it isn't a real standard word. Try again!`,
+        word => `Nice try, detective, but "${word}" doesn't appear as a standard dictionary entry.`
+      ],
+      offline: () => `Internet connection required! Please connect your Chromebook to Wi-Fi so I can check the online dictionary.`,
+      falseRoot: [
+        (word, id) => `Aha! "${word}" looks like it contains ${id}, but beware—it's a false root! Into the non-examples box it goes.`,
+        (word, id) => `Good attempt, but "${word}" is a trickster! It doesn't carry the root meaning of ${id}.`,
+        (word, id) => `Watch out! "${word}" is what we call a false root. Great catch putting it in the detector!`
+      ],
+      hints: [
+        word => `Hmm... "${word}" is a real word, but it doesn't use ${currentUnitMorphemes().join(' or ')} properly.`,
+        word => `Close, but "${word}" doesn't line up with ${currentUnitMorphemes().join(' or ')}. Give it another shot!`,
+        word => `Hoot? Double check that "${word}" builds on ${currentUnitMorphemes().join(' or ')}.`
+      ],
+      tier5: "Hoot! 5 words unlocked for this morpheme! You earned Star Detective status! ⭐",
+      tier10: "Brilliant investigating! 10 words found for this morpheme! Here is your Detective Hat! 🔍",
+      tier15: "MORPHEME MASTERED! 15 words found! You earned the Golden Crown for this unit! 👑"
+    };
+
+    /* DATA STORE (LOCAL DEMO + SUPABASE SYNC) */
+    let db = {
+      teachers: [
+        { email: CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase(), name: "Lead Teacher", is_admin: true }
+      ],
+      classes: [
+        { code: "OWL204", name: "Sample Classroom (OWL204)", teacher_email: CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase() }
+      ],
+      students: [
+        { id: "stu_1", class_code: "OWL204", name: "Maya S.", avatar: "🦊", pin: [], words_by_unit: { "set1_un-": ["unhappy", "unlock", "unsafe", "unzip", "undo"] }, test_results: [] },
+        { id: "stu_2", class_code: "OWL204", name: "Liam K.", avatar: "🐻", pin: ["🦉", "🐻"], words_by_unit: {}, test_results: [] },
+        { id: "stu_3", class_code: "OWL204", name: "Sophia R.", avatar: "🐢", pin: [], words_by_unit: {}, test_results: [] }
+      ],
+      assignments: [
+        { id: "asg_1", class_code: "OWL204", student_id: null, title: "Prefix un- Checkpoint", scope: "set1_un-", question_count: 5, due_date: "" }
+      ]
+    };
+
+    let activeClassCode = "OWL204";
+    let activeStudent = null;
+    let activeTeacher = null;
+    let pendingPinStudent = null;
+    let enteredPin = [];
+    let inspectedStudentId = null;
+
+    let currentSetKey = "set1";
+    let currentUnitIndex = 0;
+    const dictionaryCache = new Map();
+
+    /* ACTIVE TEST ENGINE STATE */
+    let activeQuiz = {
+      questions: [],
+      currentIndex: 0,
+      score: 0,
+      assignmentId: null,
+      title: ""
+    };
+
+    /* INITIALIZATION */
+    window.addEventListener('DOMContentLoaded', async () => {
+      updateOnlineBanner();
+      window.addEventListener('online', updateOnlineBanner);
+      window.addEventListener('offline', updateOnlineBanner);
+
+      populateAnimalSelects();
+      populateAssignmentScopes();
+      loadLocalDB();
+
+      const params = new URLSearchParams(window.location.search);
+      const urlClass = (params.get('class') || '').trim().toUpperCase();
+      if (urlClass) {
+        activeClassCode = urlClass;
+        document.getElementById('classCodeInput').value = urlClass;
+      }
+
+      await syncFromSupabase(activeClassCode);
+      renderLandingRoster(activeClassCode);
+    });
+
+    function loadLocalDB() {
+      try {
+        const raw = localStorage.getItem('morphology_studio_db_v2');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed.teachers) db.teachers = parsed.teachers;
+          if (parsed.classes) db.classes = parsed.classes;
+          if (parsed.students) db.students = parsed.students;
+          if (parsed.assignments) db.assignments = parsed.assignments;
+        }
+      } catch (e) {}
+    }
+
+    function saveLocalDB() {
+      try { localStorage.setItem('morphology_studio_db_v2', JSON.stringify(db)); } catch (e) {}
+    }
+
+    async function syncFromSupabase(classCode) {
+      if (!supabaseClient) return;
+      try {
+        const [{ data: tData }, { data: cData }, { data: sData }, { data: aData }] = await Promise.all([
+          supabaseClient.from('teachers').select('*'),
+          supabaseClient.from('classes').select('*'),
+          classCode ? supabaseClient.from('students').select('*').eq('class_code', classCode) : supabaseClient.from('students').select('*'),
+          classCode ? supabaseClient.from('assignments').select('*').eq('class_code', classCode) : supabaseClient.from('assignments').select('*')
+        ]);
+        if (tData && tData.length) db.teachers = tData;
+        if (cData && cData.length) db.classes = cData;
+        if (sData) {
+          db.students = db.students.filter(s => s.class_code !== classCode).concat(sData);
+        }
+        if (aData) {
+          db.assignments = db.assignments.filter(a => a.class_code !== classCode).concat(aData);
+        }
+        saveLocalDB();
+      } catch (err) {
+        console.warn("Supabase fetch skipped:", err);
+      }
+    }
+
+    /* ============================================================================
+       LANDING PAGE & PICTURE LOGIN
+       ============================================================================ */
+    async function loadClassByCode() {
+      const code = document.getElementById('classCodeInput').value.trim().toUpperCase();
+      if (!code) return;
+      activeClassCode = code;
+      await syncFromSupabase(code);
+      renderLandingRoster(code);
+    }
+
+    function renderLandingRoster(code) {
+      const cls = db.classes.find(c => c.code === code);
+      const container = document.getElementById('classRosterContainer');
+      container.innerHTML = '';
+
+      if (!cls) {
+        document.getElementById('landingClassTitle').textContent = `Class "${code}" Not Found`;
+        document.getElementById('landingClassSub').textContent = `Check your class code with your teacher, or try sample code OWL204.`;
+        return;
+      }
+
+      document.getElementById('landingClassTitle').textContent = `${cls.name} (${cls.code})`;
+      document.getElementById('landingClassSub').textContent = `Tap your name and animal picture to begin!`;
+
+      const roster = db.students.filter(s => s.class_code === code);
+      if (roster.length === 0) {
+        container.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:var(--color-text-muted);">No students added to this class yet. Ask your teacher to add your name!</p>`;
+        return;
+      }
+
+      roster.forEach(student => {
+        const tile = document.createElement('div');
+        tile.className = 'student-tile';
+        const hasPin = Array.isArray(student.pin) && student.pin.length === 2;
+        tile.innerHTML = `
+          <span class="student-tile-avatar">${student.avatar}</span>
+          <div class="student-tile-name">${student.name}</div>
+          <div class="student-tile-lock">${hasPin ? '🔒 2-Picture Passcode' : 'Tap to Start'}</div>
+        `;
+        tile.onclick = () => attemptStudentLogin(student);
+        container.appendChild(tile);
+      });
+    }
+
+    function attemptStudentLogin(student) {
+      const hasPin = Array.isArray(student.pin) && student.pin.length === 2;
+      if (!hasPin) {
+        enterStudentWorkspace(student);
+        return;
+      }
+
+      pendingPinStudent = student;
+      enteredPin = [];
+      document.getElementById('pinModalAvatar').textContent = student.avatar;
+      document.getElementById('pinModalStudentName').textContent = `Hi, ${student.name}!`;
+      document.getElementById('pinSelectedPreview').textContent = "⬜ ⬜";
+      document.getElementById('pinErrorText').textContent = "";
+
+      const pad = document.getElementById('pinPadGrid');
+      pad.innerHTML = '';
+      ANIMAL_CHARACTERS.forEach(a => {
+        const btn = document.createElement('button');
+        btn.className = 'animal-btn';
+        btn.innerHTML = `${a.emoji}<span>${a.label}</span>`;
+        btn.onclick = () => handlePinTap(a.emoji);
+        pad.appendChild(btn);
+      });
+
+      openModal('picturePinModal');
+    }
+
+    function handlePinTap(emoji) {
+      if (!pendingPinStudent || enteredPin.length >= 2) return;
+      enteredPin.push(emoji);
+      document.getElementById('pinSelectedPreview').textContent =
+        `${enteredPin[0] || '⬜'} ${enteredPin[1] || '⬜'}`;
+
+      if (enteredPin.length === 2) {
+        if (enteredPin[0] === pendingPinStudent.pin[0] && enteredPin[1] === pendingPinStudent.pin[1]) {
+          const student = pendingPinStudent;
+          pendingPinStudent = null;
+          closeModal('picturePinModal');
+          enterStudentWorkspace(student);
+        } else {
+          document.getElementById('pinErrorText').textContent = "Oops! Those pictures didn't match. Try again!";
+          enteredPin = [];
+          setTimeout(() => {
+            document.getElementById('pinSelectedPreview').textContent = "⬜ ⬜";
+          }, 600);
+        }
+      }
+    }
+
+    function enterStudentWorkspace(student) {
+      activeStudent = student;
+      if (!activeStudent.words_by_unit) activeStudent.words_by_unit = {};
+      if (!activeStudent.test_results) activeStudent.test_results = [];
+
+      document.getElementById('landingScreen').style.display = 'none';
+      document.getElementById('teacherDashboard').style.display = 'none';
+      document.getElementById('studentWorkspace').style.display = 'grid';
+
+      const cls = db.classes.find(c => c.code === student.class_code);
+      document.getElementById('workspaceClassLabel').textContent = cls ? `${cls.name} (${cls.code})` : student.class_code;
+      document.getElementById('displayStudentName').textContent = `${student.avatar} ${student.name}`;
+
+      renderAssignedTasks();
+      renderMorphemeSelector();
+      loadUnit(0);
+    }
+
+    function logoutStudent() {
+      activeStudent = null;
+      window.speechSynthesis && window.speechSynthesis.cancel();
+      document.getElementById('studentWorkspace').style.display = 'none';
+      document.getElementById('landingScreen').style.display = 'flex';
+      renderLandingRoster(activeClassCode);
+    }
+
+    /* ============================================================================
+       PER-MORPHEME PROGRESS & CORE MORPHOLOGY ENGINE
+       ============================================================================ */
+    function getUnitKey(setKey = currentSetKey, unitIdx = currentUnitIndex) {
+      const unit = CURRICULUM[setKey][unitIdx];
+      return `${setKey}_${unit.id}`;
+    }
+
+    function getStudentUnitWords(student, unitKey) {
+      if (!student || !student.words_by_unit) return [];
+      return student.words_by_unit[unitKey] || [];
+    }
+
+    function getTotalStudentWords(student) {
+      if (!student || !student.words_by_unit) return 0;
+      return Object.values(student.words_by_unit).reduce((sum, arr) => sum + arr.length, 0);
+    }
+
+    function getMasteredUnitsCount(student) {
+      if (!student || !student.words_by_unit) return 0;
+      return Object.values(student.words_by_unit).filter(arr => arr.length >= 5).length;
+    }
+
+    async function persistActiveStudent() {
+      saveLocalDB();
+      if (supabaseClient && activeStudent) {
+        try {
+          await supabaseClient.from('students').upsert({
+            id: activeStudent.id,
+            class_code: activeStudent.class_code,
+            name: activeStudent.name,
+            avatar: activeStudent.avatar,
+            pin: activeStudent.pin || [],
+            words_by_unit: activeStudent.words_by_unit,
+            test_results: activeStudent.test_results,
+            updated_at: new Date().toISOString()
+          });
+          document.getElementById('syncStatusLabel').textContent = "● Saved to Cloud";
+        } catch (err) {
+          document.getElementById('syncStatusLabel').textContent = "● Saved on Chromebook";
+        }
+      }
+    }
+
+    function updateOnlineBanner() {
+      const bar = document.getElementById('onlineStatusBar');
+      const input = document.getElementById('wordInput');
+      const btn = document.getElementById('checkWordBtn');
+      if (navigator.onLine) {
+        bar.textContent = "● Online Dictionary Active";
+        bar.classList.remove('offline');
+        if (input) input.disabled = false;
+        if (btn) btn.disabled = false;
+      } else {
+        bar.textContent = "✕ Offline — Internet Required";
+        bar.classList.add('offline');
+        if (input) input.disabled = true;
+        if (btn) btn.disabled = true;
+      }
+    }
+
+    async function verifyOnlineDictionary(word, unit) {
+      if (!navigator.onLine) return { status: "offline" };
+      if (unit.examples.includes(word) || unit.nonExamples.includes(word)) return { status: "valid" };
+      if (dictionaryCache.has(word)) return { status: dictionaryCache.get(word) ? "valid" : "invalid" };
+
+      try {
+        if (CONFIG.MERRIAM_WEBSTER_KEY) {
+          const mwRes = await fetch(`https://www.dictionaryapi.com/api/v3/references/sd2/json/${encodeURIComponent(word)}?key=${CONFIG.MERRIAM_WEBSTER_KEY}`);
+          if (!mwRes.ok) return { status: "offline" };
+          const mwData = await mwRes.json();
+          const exactEntry = Array.isArray(mwData) && mwData.some(item => item && typeof item === "object" && item.meta);
+          dictionaryCache.set(word, exactEntry);
+          return { status: exactEntry ? "valid" : "invalid" };
+        }
+
+        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+        if (res.status === 404) {
+          dictionaryCache.set(word, false);
+          return { status: "invalid" };
+        }
+        if (!res.ok) return { status: "offline" };
+
+        const data = await res.json();
+        const isExactHeadword = Array.isArray(data) && data.some(entry =>
+          entry &&
+          typeof entry.word === "string" &&
+          entry.word.toLowerCase() === word &&
+          Array.isArray(entry.meanings) &&
+          entry.meanings.length > 0
+        );
+
+        dictionaryCache.set(word, isExactHeadword);
+        return { status: isExactHeadword ? "valid" : "invalid" };
+      } catch (err) {
+        return { status: "offline" };
+      }
+    }
+
+    function getRandomItem(array) { return array[Math.floor(Math.random() * array.length)]; }
+
+    function currentUnitMorphemes() {
+      const unit = CURRICULUM[currentSetKey][currentUnitIndex];
+      const cleaned = unit.id.replace(/\(.*?\)/g, '');
+      return cleaned
+        .split(/[/,]/)
+        .map(part => part.replace(/[^a-zA-Z]/g, '').toLowerCase())
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+    }
+
+    function switchSet(setNum) {
+      currentSetKey = `set${setNum}`;
+      currentUnitIndex = 0;
+      document.querySelectorAll('#studentWorkspace .tab-btn').forEach((btn, idx) => btn.classList.toggle('active', idx === (setNum - 1)));
+      document.getElementById('quizWorkspace').style.display = 'none';
+      document.getElementById('lessonWorkspace').style.display = 'flex';
+      renderMorphemeSelector();
+      loadUnit(0);
+    }
+
+    function renderMorphemeSelector() {
+      const container = document.getElementById('morphemeSelector');
+      container.innerHTML = '';
+      CURRICULUM[currentSetKey].forEach((unit, idx) => {
+        const uKey = `${currentSetKey}_${unit.id}`;
+        const count = getStudentUnitWords(activeStudent, uKey).length;
+        const pill = document.createElement('div');
+        pill.className = `morpheme-pill ${idx === currentUnitIndex ? 'active' : ''} ${count >= 5 ? 'mastered' : ''}`;
+        pill.textContent = count > 0 ? `${unit.id} (${count}${count >= 5 ? '⭐' : ''})` : unit.id;
+        pill.onclick = () => loadUnit(idx);
+        container.appendChild(pill);
+      });
+    }
+
+    function loadUnit(index) {
+      currentUnitIndex = index;
+      const unit = CURRICULUM[currentSetKey][index];
+      renderMorphemeSelector();
+
+      document.getElementById('unitTitle').textContent = unit.id;
+      document.getElementById('unitType').textContent = unit.type;
+      document.getElementById('unitMeaning').textContent = `Meaning: ${unit.meaning}`;
+      document.getElementById('unitInstruction').innerHTML = `The ${unit.type.toLowerCase()} <strong>${unit.id}</strong> means "<em>${unit.meaning}</em>". Find real dictionary words that build on this meaning!`;
+
+      const exContainer = document.getElementById('examplesContainer');
+      exContainer.innerHTML = '';
+      unit.examples.slice(0, 4).forEach(w => addTag(w, 'example'));
+
+      // Load ONLY words discovered for THIS specific morpheme unit
+      const uKey = getUnitKey();
+      const unitWords = getStudentUnitWords(activeStudent, uKey);
+      unitWords.forEach(w => addTag(w, 'example'));
+
+      const nonExContainer = document.getElementById('nonExamplesContainer');
+      nonExContainer.innerHTML = '';
+      unit.nonExamples.slice(0, 3).forEach(w => addTag(w, 'nonexample'));
+
+      const fluencyContainer = document.getElementById('fluencyGrid');
+      fluencyContainer.innerHTML = '';
+      const gridWords = [...unit.examples, ...unit.examples].slice(0, 14);
+      gridWords.forEach(w => {
+        const cell = document.createElement('div');
+        cell.className = 'fluency-cell';
+        cell.textContent = w;
+        cell.onclick = () => {
+          speakOwly(w);
+          cell.style.background = '#81B29A';
+          cell.style.color = 'white';
+        };
+        fluencyContainer.appendChild(cell);
+      });
+
+      updateUnitProgressUI(false);
+      speakOwly(getRandomItem(OWLY_DIALOGUE.intros)(unit.id, unit.meaning));
+    }
+
+    function addTag(word, type) {
+      const container = type === 'example' ? document.getElementById('examplesContainer') : document.getElementById('nonExamplesContainer');
+      const existing = Array.from(container.children).some(el => el.textContent.toLowerCase().includes(word.toLowerCase()));
+      if (existing) return;
+      const tag = document.createElement('span');
+      tag.className = `tag tag-${type}`;
+      tag.textContent = (type === 'example' ? '✓ ' : '⚠️ ') + word;
+      container.appendChild(tag);
+    }
+
+    async function submitWord() {
+      if (!navigator.onLine) {
+        updateOnlineBanner();
+        speakOwly(OWLY_DIALOGUE.offline());
+        return;
+      }
+
+      const input = document.getElementById('wordInput');
+      const btn = document.getElementById('checkWordBtn');
+      const word = input.value.trim().toLowerCase().replace(/[^a-z]/g, '');
+      if (!word) return;
+
+      const unit = CURRICULUM[currentSetKey][currentUnitIndex];
+      const morphemeParts = currentUnitMorphemes();
+
+      if (unit.nonExamples.includes(word)) {
+        addTag(word, 'nonexample');
+        speakOwly(getRandomItem(OWLY_DIALOGUE.falseRoot)(word, unit.id));
+        input.value = '';
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = "Checking...";
+      const check = await verifyOnlineDictionary(word, unit);
+      btn.disabled = false;
+      btn.textContent = "Check Word";
+
+      if (check.status === "offline") {
+        speakOwly(OWLY_DIALOGUE.offline());
+        return;
+      }
+
+      if (check.status !== "valid") {
+        speakOwly(getRandomItem(OWLY_DIALOGUE.notInDictionary)(word));
+        input.value = '';
+        return;
+      }
+
+      const isKnownExample = unit.examples.includes(word);
+      const matchesKey = morphemeParts.some(k => {
+        if (unit.type === "Prefix") return word.startsWith(k) && word.length >= k.length + 2;
+        if (unit.type === "Suffix") return word.endsWith(k) && word.length >= k.length + 2;
+        return word.includes(k) && word.length >= k.length + 1;
+      });
+
+      if (isKnownExample || matchesKey) {
+        addTag(word, 'example');
+        const uKey = getUnitKey();
+        if (!activeStudent.words_by_unit[uKey]) activeStudent.words_by_unit[uKey] = [];
+
+        if (!activeStudent.words_by_unit[uKey].includes(word)) {
+          activeStudent.words_by_unit[uKey].push(word);
+          await persistActiveStudent();
+          renderMorphemeSelector();
+          updateUnitProgressUI(true, word);
+        } else {
+          speakOwly(`"${word}" is already saved for ${unit.id}! Try finding a new word.`);
+        }
+      } else {
+        speakOwly(getRandomItem(OWLY_DIALOGUE.hints)(word));
+      }
+
+      input.value = '';
+    }
+
+    function updateUnitProgressUI(announce, lastWord = "") {
+      const unit = CURRICULUM[currentSetKey][currentUnitIndex];
+      const uKey = getUnitKey();
+      const unitWords = getStudentUnitWords(activeStudent, uKey);
+      const count = unitWords.length;
+      const totalWords = getTotalStudentWords(activeStudent);
+
+      document.getElementById('unitProgressHeading').textContent = `Unit: ${unit.id}`;
+      document.getElementById('wordsFoundCount').textContent = `${count} / 15`;
+      document.getElementById('unitProgressBar').style.width = `${Math.min((count / 15) * 100, 100)}%`;
+      document.getElementById('totalStudentWordsLabel').textContent = `Total: ${totalWords} Words`;
+
+      const badge = document.getElementById('owlyTier');
+      const hat = document.getElementById('detectiveHat');
+      const crown = document.getElementById('goldenCrown');
+      const glow = document.getElementById('owlCrownGlow');
+      const target = document.getElementById('milestoneTarget');
+
+      if (announce) {
+        if (count === 15) speakOwly(OWLY_DIALOGUE.tier15);
+        else if (count === 10) speakOwly(OWLY_DIALOGUE.tier10);
+        else if (count === 5) speakOwly(OWLY_DIALOGUE.tier5);
+        else speakOwly(getRandomItem(OWLY_DIALOGUE.success)(lastWord));
+      }
+
+      if (count >= 15) {
+        badge.className = 'tier-badge tier-awesome';
+        badge.textContent = 'UNIT MASTERED! 👑';
+        target.textContent = 'Max Rank Reached!';
+        crown.setAttribute('opacity', '1');
+        glow.setAttribute('opacity', '1');
+        hat.setAttribute('opacity', '0');
+      } else if (count >= 10) {
+        badge.className = 'tier-badge tier-amazing';
+        badge.textContent = 'AMAZING DETECTIVE! 🔍';
+        target.textContent = 'Next Rank: 15 Words';
+        hat.setAttribute('opacity', '1');
+        crown.setAttribute('opacity', '0');
+        glow.setAttribute('opacity', '0');
+      } else if (count >= 5) {
+        badge.className = 'tier-badge tier-good';
+        badge.textContent = 'GOOD JOB! ⭐';
+        target.textContent = 'Next Rank: 10 Words';
+        hat.setAttribute('opacity', '0');
+        crown.setAttribute('opacity', '0');
+        glow.setAttribute('opacity', '0');
+      } else {
+        badge.className = 'tier-badge tier-starter';
+        badge.textContent = 'STARTER DETECTIVE';
+        target.textContent = 'Next Rank: 5 Words';
+        hat.setAttribute('opacity', '0');
+        crown.setAttribute('opacity', '0');
+        glow.setAttribute('opacity', '0');
+      }
+    }
+
+    function speakOwly(text) {
+      document.getElementById('owlySpeech').textContent = text;
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.pitch = 1.0;
+      utter.rate = parseFloat(document.getElementById('rateSlider').value) || 0.9;
+      const avatar = document.getElementById('owlyAvatarContainer');
+      utter.onstart = () => avatar.classList.add('bounce');
+      utter.onend = () => avatar.classList.remove('bounce');
+      window.speechSynthesis.speak(utter);
+    }
+
+    function testOwlyVoice() {
+      speakOwly("Hoot! I am Owly, your morphology guide!");
+    }
+
+    /* ============================================================================
+       ASSIGNED TASKS & GRADED MASTERY TEST ENGINE
+       ============================================================================ */
+    function renderAssignedTasks() {
+      const banner = document.getElementById('assignedTasksBanner');
+      const chips = document.getElementById('assignedTaskChips');
+      chips.innerHTML = '';
+
+      if (!activeStudent) { banner.style.display = 'none'; return; }
+
+      const myTasks = db.assignments.filter(a =>
+        a.class_code === activeStudent.class_code &&
+        (!a.student_id || a.student_id === activeStudent.id)
+      );
+
+      if (myTasks.length === 0) {
+        banner.style.display = 'none';
+        return;
+      }
+
+      banner.style.display = 'flex';
+      myTasks.forEach(task => {
+        const completedResult = (activeStudent.test_results || []).find(r => r.assignment_id === task.id);
+        const chip = document.createElement('button');
+        chip.className = `task-chip ${completedResult ? 'completed' : ''}`;
+        chip.innerHTML = completedResult
+          ? `✓ ${task.title} (${completedResult.score}%)`
+          : `📝 ${task.title}${task.due_date ? ` • Due ${task.due_date}` : ''}`;
+        chip.onclick = () => launchGradedTest(task.scope, task.question_count, task.title, task.id);
+        chips.appendChild(chip);
+      });
+    }
+
+    function startPracticeQuiz() {
+      const uKey = getUnitKey();
+      const unit = CURRICULUM[currentSetKey][currentUnitIndex];
+      launchGradedTest(uKey, 5, `Practice Quiz: ${unit.id}`, null);
+    }
+
+    function launchGradedTest(scope, questionCount, title, assignmentId) {
+      let pool = [];
+      if (scope === 'set1' || scope === 'set2' || scope === 'set3') {
+        pool = CURRICULUM[scope];
+      } else {
+        const [sKey, uId] = scope.split('_');
+        const found = (CURRICULUM[sKey] || []).find(u => u.id === uId);
+        pool = found ? [found] : CURRICULUM.set1;
+      }
+
+      const questions = [];
+      for (let i = 0; i < questionCount; i++) {
+        const unit = pool[i % pool.length];
+        const qType = i % 3;
+
+        if (qType === 0) {
+          // Question Type 1: Morpheme Meaning
+          const distractors = CURRICULUM.set1
+            .filter(u => u.meaning !== unit.meaning)
+            .sort(() => Math.random() - 0.5)
+            .slice(0, 2)
+            .map(u => u.meaning);
+          questions.push({
+            prompt: `What is the meaning of the ${unit.type.toLowerCase()} "${unit.id}"?`,
+            correct: unit.meaning,
+            options: [unit.meaning, ...distractors].sort(() => Math.random() - 0.5)
+          });
+        } else if (qType === 1) {
+          // Question Type 2: Identify True Affixed Word vs False Root
+          const correct = getRandomItem(unit.examples);
+          const wrong1 = getRandomItem(unit.nonExamples) || "uncle";
+          const wrong2 = "mountain";
+          questions.push({
+            prompt: `Which word truly uses "${unit.id}" (${unit.meaning})?`,
+            correct,
+            options: [correct, wrong1, wrong2].sort(() => Math.random() - 0.5)
+          });
+        } else {
+          // Question Type 3: Spot the False Root ("Uncle Rule")
+          const falseRoot = getRandomItem(unit.nonExamples) || "uncle";
+          const trueWords = unit.examples.slice(0, 2);
+          questions.push({
+            prompt: `Spot the trickster! Which word does NOT use "${unit.id}" to mean "${unit.meaning}"?`,
+            correct: falseRoot,
+            options: [falseRoot, ...trueWords].sort(() => Math.random() - 0.5)
+          });
+        }
+      }
+
+      activeQuiz = {
+        questions,
+        currentIndex: 0,
+        score: 0,
+        assignmentId,
+        title
+      };
+
+      document.getElementById('lessonWorkspace').style.display = 'none';
+      document.getElementById('quizWorkspace').style.display = 'block';
+      renderQuizQuestion();
+      speakOwly(`Starting ${title}! Read each question carefully.`);
+    }
+
+    function renderQuizQuestion() {
+      const q = activeQuiz.questions[activeQuiz.currentIndex];
+      document.getElementById('quizTitle').textContent = activeQuiz.title;
+      document.getElementById('quizStepCounter').textContent = `Question ${activeQuiz.currentIndex + 1} of ${activeQuiz.questions.length}`;
+      document.getElementById('quizQuestion').textContent = q.prompt;
+      document.getElementById('quizNextBtn').style.display = 'none';
+
+      const optContainer = document.getElementById('quizOptions');
+      optContainer.innerHTML = '';
+
+      q.options.forEach(opt => {
+        const btn = document.createElement('button');
+        btn.className = 'quiz-opt-btn';
+        btn.textContent = opt;
+        btn.onclick = () => handleQuizAnswer(btn, opt, q.correct);
+        optContainer.appendChild(btn);
+      });
+    }
+
+    function handleQuizAnswer(clickedBtn, chosen, correct) {
+      const allBtns = document.querySelectorAll('#quizOptions .quiz-opt-btn');
+      allBtns.forEach(b => {
+        b.disabled = true;
+        if (b.textContent === correct) {
+          b.style.background = '#81B29A';
+          b.style.color = 'white';
+        }
+      });
+
+      if (chosen === correct) {
+        activeQuiz.score++;
+        speakOwly("Hoot! Spot on!");
+      } else {
+        clickedBtn.style.background = '#E07A5F';
+        clickedBtn.style.color = 'white';
+        speakOwly(`Not quite—the correct answer is "${correct}".`);
+      }
+
+      const nextBtn = document.getElementById('quizNextBtn');
+      nextBtn.style.display = 'inline-block';
+      nextBtn.textContent = activeQuiz.currentIndex + 1 < activeQuiz.questions.length ? "Next Question →" : "Finish & Save Score";
+    }
+
+    async function nextQuizQuestion() {
+      activeQuiz.currentIndex++;
+      if (activeQuiz.currentIndex < activeQuiz.questions.length) {
+        renderQuizQuestion();
+        return;
+      }
+
+      const pct = Math.round((activeQuiz.score / activeQuiz.questions.length) * 100);
+      const resultEntry = {
+        assignment_id: activeQuiz.assignmentId,
+        title: activeQuiz.title,
+        score: pct,
+        raw: `${activeQuiz.score}/${activeQuiz.questions.length}`,
+        completed_at: new Date().toLocaleDateString()
+      };
+
+      if (activeStudent) {
+        if (!activeStudent.test_results) activeStudent.test_results = [];
+        if (activeQuiz.assignmentId) {
+          activeStudent.test_results = activeStudent.test_results.filter(r => r.assignment_id !== activeQuiz.assignmentId);
+        }
+        activeStudent.test_results.push(resultEntry);
+        await persistActiveStudent();
+        renderAssignedTasks();
+      }
+
+      document.getElementById('quizStepCounter').textContent = "Test Complete!";
+      document.getElementById('quizQuestion').textContent = `You scored ${activeQuiz.score} out of ${activeQuiz.questions.length} (${pct}%)!`;
+      document.getElementById('quizOptions').innerHTML = '';
+      document.getElementById('quizNextBtn').style.display = 'none';
+      speakOwly(`Awesome work! You scored ${pct} percent on ${activeQuiz.title}!`);
+    }
+
+    function closeQuiz() {
+      document.getElementById('quizWorkspace').style.display = 'none';
+      document.getElementById('lessonWorkspace').style.display = 'flex';
+    }
+
+    /* ============================================================================
+       PROGRESS INSPECTOR & PRINTABLE CERTIFICATE
+       ============================================================================ */
+    function openStudentReportModal() {
+      if (!activeStudent) return;
+      openProgressInspector(activeStudent.id);
+    }
+
+    function openProgressInspector(studentId) {
+      const student = db.students.find(s => s.id === studentId);
+      if (!student) return;
+      inspectedStudentId = student.id;
+
+      const totalWords = getTotalStudentWords(student);
+      const masteredCount = getMasteredUnitsCount(student);
+      document.getElementById('inspectorTitle').textContent = `${student.avatar} ${student.name} — Mastery Report`;
+      document.getElementById('inspectorSubtitle').textContent = `Mastered Units (5+ words): ${masteredCount} / 59 • Total Discovered Words: ${totalWords}`;
+
+      const testsBody = document.getElementById('inspectorTestsBody');
+      testsBody.innerHTML = '';
+      if (!student.test_results || student.test_results.length === 0) {
+        testsBody.innerHTML = `<tr><td colspan="3" style="color:var(--color-text-muted);">No tests completed yet.</td></tr>`;
+      } else {
+        student.test_results.forEach(r => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `<td><strong>${r.title}</strong></td><td>${r.score}% (${r.raw})</td><td>${r.completed_at}</td>`;
+          testsBody.appendChild(tr);
+        });
+      }
+
+      const unitsBody = document.getElementById('inspectorUnitsBody');
+      unitsBody.innerHTML = '';
+      ['set1', 'set2', 'set3'].forEach(sKey => {
+        CURRICULUM[sKey].forEach(unit => {
+          const uKey = `${sKey}_${unit.id}`;
+          const words = getStudentUnitWords(student, uKey);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><strong>${unit.id}</strong> <span style="font-size:0.75rem; color:var(--color-text-muted);">(${unit.meaning})</span></td>
+            <td>${words.length} / 15 ${words.length >= 5 ? '⭐' : ''}</td>
+            <td style="font-size:0.78rem; color:var(--color-text-muted);">${words.length ? words.join(', ') : '—'}</td>
+          `;
+          unitsBody.appendChild(tr);
+        });
+      });
+
+      openModal('progressInspectorModal');
+    }
+
+    function exportInspectedStudentCSV() {
+      const student = db.students.find(s => s.id === inspectedStudentId);
+      if (!student) return;
+      const rows = [["Student", "Set", "Morpheme", "Words Count", "Discovered Words"]];
+      ['set1', 'set2', 'set3'].forEach(sKey => {
+        CURRICULUM[sKey].forEach(unit => {
+          const words = getStudentUnitWords(student, `${sKey}_${unit.id}`);
+          rows.push([student.name, sKey.toUpperCase(), unit.id, words.length, `"${words.join(', ')}"`]);
+        });
+      });
+      downloadCSV(rows, `${student.name.replace(/\s+/g, '_')}_morphology_progress.csv`);
+    }
+
+    function printCertificate() {
+      const student = db.students.find(s => s.id === inspectedStudentId) || activeStudent;
+      if (!student) return;
+      document.getElementById('certAvatar').textContent = student.avatar;
+      document.getElementById('certStudentName').textContent = student.name;
+      document.getElementById('certWordCount').textContent = getTotalStudentWords(student);
+      document.getElementById('certUnitsCount').textContent = getMasteredUnitsCount(student);
+      document.getElementById('certDate').textContent = new Date().toLocaleDateString();
+      window.print();
+    }
+
+    /* ============================================================================
+       TEACHER AUTH, MULTI-TEACHER STAFF, ROSTER & ASSIGNMENTS
+       ============================================================================ */
+    function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function populateAnimalSelects() {
+      const targets = ['newStudentAnimal', 'newStudentPin1', 'newStudentPin2'];
+      targets.forEach((id, idx) => {
+        const sel = document.getElementById(id);
+        sel.innerHTML = idx > 0 ? `<option value="">None</option>` : '';
+        ANIMAL_CHARACTERS.forEach(a => {
+          const opt = document.createElement('option');
+          opt.value = a.emoji;
+          opt.textContent = `${a.emoji} ${a.label}`;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    function populateAssignmentScopes() {
+      const sel = document.getElementById('assignScope');
+      sel.innerHTML = `
+        <option value="set1">Full Set 1 Quiz (Grades ≤ 3)</option>
+        <option value="set2">Full Set 2 Quiz (Grades 3–4)</option>
+        <option value="set3">Full Set 3 Quiz (Grades 4–5+)</option>
+      `;
+      ['set1', 'set2', 'set3'].forEach(sKey => {
+        CURRICULUM[sKey].forEach(u => {
+          const opt = document.createElement('option');
+          opt.value = `${sKey}_${u.id}`;
+          opt.textContent = `${sKey.toUpperCase()} — ${u.id} (${u.meaning})`;
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    async function handleTeacherLogin(mode) {
+      const email = document.getElementById('teacherLoginEmail').value.trim().toLowerCase();
+      const password = document.getElementById('teacherLoginPassword').value;
+      const feedback = document.getElementById('teacherAuthFeedback');
+      if (!email) { feedback.textContent = "Please enter your teacher email."; return; }
+
+      if (supabaseClient && password) {
+        feedback.textContent = "Authenticating...";
+        const { error } = mode === 'signup'
+          ? await supabaseClient.auth.signUp({ email, password })
+          : await supabaseClient.auth.signInWithPassword({ email, password });
+        if (error) { feedback.textContent = error.message; return; }
+      }
+
+      const authorized = db.teachers.find(t => t.email === email) || (email === CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase() ? { email, name: "Lead Teacher", is_admin: true } : null);
+      if (!authorized) {
+        feedback.textContent = "This email has not been authorized yet. Ask your lead teacher to add your email in Manage Teachers.";
+        return;
+      }
+
+      activeTeacher = authorized;
+      closeModal('teacherAuthModal');
+      openTeacherDashboard();
+    }
+
+    async function openTeacherDashboard() {
+      document.getElementById('landingScreen').style.display = 'none';
+      document.getElementById('studentWorkspace').style.display = 'none';
+      document.getElementById('teacherDashboard').style.display = 'block';
+      document.getElementById('teacherWelcomeLabel').textContent = `Signed in as ${activeTeacher.name} (${activeTeacher.email})`;
+
+      const myClasses = activeTeacher.is_admin
+        ? db.classes
+        : db.classes.filter(c => c.teacher_email === activeTeacher.email);
+
+      const sel = document.getElementById('teacherClassSelect');
+      sel.innerHTML = '';
+      myClasses.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.code;
+        opt.textContent = `${c.name} (${c.code})`;
+        sel.appendChild(opt);
+      });
+
+      if (myClasses.length > 0) {
+        activeClassCode = myClasses[0].code;
+        sel.value = activeClassCode;
+      }
+
+      await onTeacherClassChange();
+      renderStaffTable();
+    }
+
+    function exitTeacherDashboard() {
+      document.getElementById('teacherDashboard').style.display = 'none';
+      document.getElementById('landingScreen').style.display = 'flex';
+      renderLandingRoster(activeClassCode);
+    }
+
+    function switchTeacherTab(tab) {
+      document.getElementById('teacherTabRoster').style.display = tab === 'roster' ? 'grid' : 'none';
+      document.getElementById('teacherTabAssign').style.display = tab === 'assign' ? 'grid' : 'none';
+      document.getElementById('teacherTabStaff').style.display = tab === 'staff' ? 'block' : 'none';
+
+      document.getElementById('tTabRoster').classList.toggle('active', tab === 'roster');
+      document.getElementById('tTabAssign').classList.toggle('active', tab === 'assign');
+      document.getElementById('tTabStaff').classList.toggle('active', tab === 'staff');
+    }
+
+    async function onTeacherClassChange() {
+      const sel = document.getElementById('teacherClassSelect');
+      if (sel.value) activeClassCode = sel.value;
+
+      const baseUrl = window.location.href.split('?')[0];
+      document.getElementById('shareableClassUrl').textContent = `${baseUrl}?class=${activeClassCode}`;
+
+      await syncFromSupabase(activeClassCode);
+      renderTeacherRosterTable();
+      renderTeacherAssignmentsTable();
+    }
+
+    function copyClassLink() {
+      const link = document.getElementById('shareableClassUrl').textContent;
+      navigator.clipboard && navigator.clipboard.writeText(link);
+      alert(`Copied classroom link:\n${link}`);
+    }
+
+    async function createNewClass() {
+      const name = document.getElementById('newClassNameInput').value.trim();
+      const code = document.getElementById('newClassCodeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+      if (!name || !code) return;
+
+      const newCls = { code, name, teacher_email: activeTeacher.email };
+      db.classes.push(newCls);
+      saveLocalDB();
+      if (supabaseClient) await supabaseClient.from('classes').upsert(newCls);
+
+      closeModal('createClassModal');
+      openTeacherDashboard();
+    }
+
+    function renderTeacherRosterTable() {
+      const tbody = document.getElementById('teacherRosterTableBody');
+      const targetSel = document.getElementById('assignTargetStudent');
+      tbody.innerHTML = '';
+      targetSel.innerHTML = `<option value="">Entire Class (${activeClassCode})</option>`;
+
+      const roster = db.students.filter(s => s.class_code === activeClassCode);
+      if (roster.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" style="color:var(--color-text-muted);">No students yet. Add your first student on the right!</td></tr>`;
+        return;
+      }
+
+      roster.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.avatar} ${s.name}`;
+        targetSel.appendChild(opt);
+
+        const mastered = getMasteredUnitsCount(s);
+        const words = getTotalStudentWords(s);
+        const results = s.test_results || [];
+        const avg = results.length ? `${Math.round(results.reduce((acc, r) => acc + r.score, 0) / results.length)}%` : '—';
+        const pinText = (s.pin && s.pin.length === 2) ? s.pin.join(' ') : '1-Tap';
+
+        const tr = document.createElement('tr');
+        tr.className = 'clickable';
+        tr.innerHTML = `
+          <td><strong>${s.avatar} ${s.name}</strong></td>
+          <td>${pinText}</td>
+          <td>${mastered} / 59</td>
+          <td>${words}</td>
+          <td>${avg}</td>
+        `;
+        tr.onclick = () => openProgressInspector(s.id);
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function addSingleStudent() {
+      const name = document.getElementById('newStudentName').value.trim();
+      const avatar = document.getElementById('newStudentAnimal').value;
+      const p1 = document.getElementById('newStudentPin1').value;
+      const p2 = document.getElementById('newStudentPin2').value;
+      if (!name || !activeClassCode) return;
+
+      const student = {
+        id: `stu_${Date.now()}`,
+        class_code: activeClassCode,
+        name,
+        avatar,
+        pin: (p1 && p2) ? [p1, p2] : [],
+        words_by_unit: {},
+        test_results: []
+      };
+
+      db.students.push(student);
+      saveLocalDB();
+      if (supabaseClient) await supabaseClient.from('students').upsert(student);
+
+      document.getElementById('newStudentName').value = '';
+      renderTeacherRosterTable();
+    }
+
+    async function bulkAddStudents() {
+      const raw = document.getElementById('bulkStudentNames').value;
+      const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+      if (!lines.length || !activeClassCode) return;
+
+      const newStudents = lines.map((name, idx) => ({
+        id: `stu_${Date.now()}_${idx}`,
+        class_code: activeClassCode,
+        name,
+        avatar: ANIMAL_CHARACTERS[idx % ANIMAL_CHARACTERS.length].emoji,
+        pin: [],
+        words_by_unit: {},
+        test_results: []
+      }));
+
+      db.students.push(...newStudents);
+      saveLocalDB();
+      if (supabaseClient) await supabaseClient.from('students').upsert(newStudents);
+
+      document.getElementById('bulkStudentNames').value = '';
+      renderTeacherRosterTable();
+    }
+
+    async function createAssignment() {
+      const title = document.getElementById('assignTitle').value.trim();
+      const scope = document.getElementById('assignScope').value;
+      const question_count = parseInt(document.getElementById('assignQuestionCount').value, 10);
+      const student_id = document.getElementById('assignTargetStudent').value || null;
+      const due_date = document.getElementById('assignDueDate').value;
+      if (!title || !activeClassCode) return;
+
+      const asg = {
+        id: `asg_${Date.now()}`,
+        class_code: activeClassCode,
+        student_id,
+        title,
+        scope,
+        question_count,
+        due_date
+      };
+
+      db.assignments.push(asg);
+      saveLocalDB();
+      if (supabaseClient) await supabaseClient.from('assignments').upsert(asg);
+
+      document.getElementById('assignTitle').value = '';
+      renderTeacherAssignmentsTable();
+    }
+
+    function renderTeacherAssignmentsTable() {
+      const tbody = document.getElementById('teacherAssignmentsTableBody');
+      tbody.innerHTML = '';
+      const list = db.assignments.filter(a => a.class_code === activeClassCode);
+      if (!list.length) {
+        tbody.innerHTML = `<tr><td colspan="4" style="color:var(--color-text-muted);">No assignments yet.</td></tr>`;
+        return;
+      }
+      list.forEach(a => {
+        const stu = a.student_id ? db.students.find(s => s.id === a.student_id) : null;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><strong>${a.title}</strong></td>
+          <td>${stu ? `${stu.avatar} ${stu.name}` : 'Entire Class'}</td>
+          <td>${a.due_date || '—'}</td>
+          <td><button class="btn-outline" onclick="deleteAssignment('${a.id}')">Remove</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function deleteAssignment(id) {
+      db.assignments = db.assignments.filter(a => a.id !== id);
+      saveLocalDB();
+      if (supabaseClient) await supabaseClient.from('assignments').delete().eq('id', id);
+      renderTeacherAssignmentsTable();
+    }
+
+    function renderStaffTable() {
+      const tbody = document.getElementById('teacherStaffTableBody');
+      tbody.innerHTML = '';
+      db.teachers.forEach(t => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><strong>${t.name}</strong></td><td>${t.email}</td><td>${t.is_admin ? 'Admin' : 'Teacher'}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function authorizeTeacher() {
+      const email = document.getElementById('newTeacherEmailInput').value.trim().toLowerCase();
+      const name = document.getElementById('newTeacherNameInput').value.trim() || "Classroom Teacher";
+      if (!email) return;
+
+      const teacher = { email, name, is_admin: false };
+      if (!db.teachers.some(t => t.email === email)) {
+        db.teachers.push(teacher);
+        saveLocalDB();
+        if (supabaseClient) await supabaseClient.from('teachers').upsert(teacher);
+      }
+      document.getElementById('newTeacherEmailInput').value = '';
+      document.getElementById('newTeacherNameInput').value = '';
+      renderStaffTable();
+    }
+
+    function exportClassCSV() {
+      const roster = db.students.filter(s => s.class_code === activeClassCode);
+      const rows = [["Class Code", "Student Name", "Avatar", "Mastered Units", "Total Words", "Average Test Score"]];
+      roster.forEach(s => {
+        const results = s.test_results || [];
+        const avg = results.length ? `${Math.round(results.reduce((acc, r) => acc + r.score, 0) / results.length)}%` : "N/A";
+        rows.push([activeClassCode, s.name, s.avatar, getMasteredUnitsCount(s), getTotalStudentWords(s), avg]);
+      });
+      downloadCSV(rows, `${activeClassCode}_class_gradebook.csv`);
+    }
+
+    function downloadCSV(rows, filename) {
+      const csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+      const link = document.createElement("a");
+      link.setAttribute("href", encodeURI(csvContent));
+      link.setAttribute("download", filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  </script>
+</body>
+</html>
