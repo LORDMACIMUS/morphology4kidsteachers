@@ -260,6 +260,17 @@
       text-align: center;
     }
     .btn-outline:hover { border-color: var(--color-terracotta); background: #FDFBF7; }
+    .btn-danger-outline {
+      background: #FFF5F5;
+      border: 1px solid #F5C2C7;
+      color: #842029;
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-danger-outline:hover { background: #F8D7DA; }
 
     .right-panel { padding: 18px 22px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 
@@ -759,8 +770,10 @@
           <label style="font-weight:700; font-size:0.88rem;">Active Class:</label>
           <select id="teacherClassSelect" style="padding:8px 12px; border:2px solid var(--color-border); border-radius:8px; font-weight:700;" onchange="onTeacherClassChange()"></select>
           <button class="btn-outline" onclick="openModal('createClassModal')">+ New Class</button>
+          <button class="btn-danger-outline" id="deleteClassBtn" style="display:none;" onclick="deleteActiveClass()">🗑️ Delete Class</button>
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span id="cloudSyncBadge" style="font-size:0.75rem; font-weight:700; color:#0F5132; background:#D1E7DD; padding:4px 8px; border-radius:6px;">● Cloud Connected</span>
           <span style="font-size:0.8rem; color:var(--color-text-muted);">Student Link:</span>
           <code id="shareableClassUrl" style="background:#F4F7F2; padding:6px 10px; border-radius:6px; font-size:0.8rem; border:1px solid var(--color-border);">Create a class to generate link</code>
           <button class="btn-submit" style="padding:7px 12px; font-size:0.8rem;" onclick="copyClassLink()">Copy Link</button>
@@ -782,6 +795,7 @@
                 <th>Mastered Units</th>
                 <th>Total Words</th>
                 <th>Avg Test</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody id="teacherRosterTableBody"></tbody>
@@ -988,65 +1002,11 @@ Noah T."></textarea>
   </div>
 
   <script>
-    /* ============================================================================
-       SUPABASE CLOUD CONFIGURATION & SQL SETUP INSTRUCTIONS
-       ============================================================================
-       1. Create a free project at https://supabase.com using your personal Gmail.
-       2. Paste your Project URL and Anon Key into CONFIG below.
-       3. In Supabase SQL Editor, run this schema to create your tables:
-
-       create table teachers (
-         email text primary key,
-         name text not null,
-         is_admin boolean default false,
-         created_at timestamptz default now()
-       );
-
-       create table classes (
-         code text primary key,
-         name text not null,
-         teacher_email text references teachers(email) on delete cascade,
-         created_at timestamptz default now()
-       );
-
-       create table students (
-         id text primary key,
-         class_code text references classes(code) on delete cascade,
-         name text not null,
-         avatar text not null,
-         pin jsonb default '[]'::jsonb,
-         words_by_unit jsonb default '{}'::jsonb,
-         test_results jsonb default '[]'::jsonb,
-         updated_at timestamptz default now()
-       );
-
-       create table assignments (
-         id text primary key,
-         class_code text references classes(code) on delete cascade,
-         student_id text,
-         title text not null,
-         scope text not null,
-         question_count int default 8,
-         due_date text,
-         created_at timestamptz default now()
-       );
-
-       alter table teachers enable row level security;
-       alter table classes enable row level security;
-       alter table students enable row level security;
-       alter table assignments enable row level security;
-
-       create policy "Public classroom access teachers" on teachers for all using (true) with check (true);
-       create policy "Public classroom access classes" on classes for all using (true) with check (true);
-       create policy "Public classroom access students" on students for all using (true) with check (true);
-       create policy "Public classroom access assignments" on assignments for all using (true) with check (true);
-       ============================================================================ */
-
     const CONFIG = {
-      SUPABASE_URL: "https://cybbtbgjfbrvwdubxwfr.supabase.co",                          // Optional: Paste Supabase Project URL here
-      SUPABASE_ANON_KEY: "sb_publishable_EsxHnEp_zsSNLlApVsCSdw_e18QeQle",                     // Optional: Paste Supabase Anon Public Key here
+      SUPABASE_URL: "https://cybbtbgjfbrvwdubxwfr.supabase.co",
+      SUPABASE_ANON_KEY: "sb_publishable_EsxHnEp_zsSNLlApVsCSdw_e18QeQle",
       ADMIN_TEACHER_EMAIL: "liammcdermott90@gmail.com",
-      MERRIAM_WEBSTER_KEY: ""                    // Optional: Free Merriam-Webster API key
+      MERRIAM_WEBSTER_KEY: ""
     };
 
     let supabaseClient = null;
@@ -1188,8 +1148,7 @@ Noah T."></textarea>
       tier15: "MORPHEME MASTERED! 15 words found! You earned the Golden Crown for this unit! 👑"
     };
 
-    /* CLEAN SLATE DATA STORE (ALL OLD CLASSES & PROGRESS RESET) */
-    const STORAGE_KEY = 'morphology_studio_db_v3';
+    const STORAGE_KEY = 'morphology_studio_db_v4';
 
     let db = {
       teachers: [
@@ -1211,7 +1170,6 @@ Noah T."></textarea>
     let currentUnitIndex = 0;
     const dictionaryCache = new Map();
 
-    /* ACTIVE TEST ENGINE STATE */
     let activeQuiz = {
       questions: [],
       currentIndex: 0,
@@ -1232,15 +1190,20 @@ Noah T."></textarea>
 
       const params = new URLSearchParams(window.location.search);
       const urlClass = (params.get('class') || '').trim().toUpperCase();
+
       if (urlClass) {
         activeClassCode = urlClass;
         document.getElementById('classCodeInput').value = urlClass;
+        document.getElementById('landingClassTitle').textContent = `Loading Class ${urlClass}...`;
         await syncFromSupabase(activeClassCode);
         renderLandingRoster(activeClassCode);
-      } else if (db.classes.length > 0) {
-        activeClassCode = db.classes[0].code;
-        document.getElementById('classCodeInput').value = activeClassCode;
-        renderLandingRoster(activeClassCode);
+      } else {
+        await syncFromSupabase(null);
+        if (db.classes.length > 0) {
+          activeClassCode = db.classes[0].code;
+          document.getElementById('classCodeInput').value = activeClassCode;
+          renderLandingRoster(activeClassCode);
+        }
       }
     });
 
@@ -1254,10 +1217,9 @@ Noah T."></textarea>
           if (parsed.students) db.students = parsed.students;
           if (parsed.assignments) db.assignments = parsed.assignments;
         }
-        // Ensure configured admin email is always authorized
         const adminEmail = CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase();
         if (!db.teachers.some(t => t.email === adminEmail)) {
-          db.teachers.unshift({ email: adminEmail, name: "Lead Teacher", is_admin: true });
+          db.teachers.unshift({ email: adminEmail, name: "Liam McDermott", is_admin: true });
         }
       } catch (e) {}
     }
@@ -1266,24 +1228,62 @@ Noah T."></textarea>
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch (e) {}
     }
 
+    async function ensureTeacherInSupabase(teacher) {
+      if (!supabaseClient || !teacher) return;
+      const payload = {
+        email: teacher.email.toLowerCase(),
+        name: teacher.name || "Classroom Teacher",
+        is_admin: !!teacher.is_admin
+      };
+      const { error } = await supabaseClient.from('teachers').upsert(payload);
+      if (error) console.error("Teacher upsert error:", error);
+    }
+
     async function syncFromSupabase(classCode) {
       if (!supabaseClient) return;
       try {
-        const [{ data: tData }, { data: cData }, { data: sData }, { data: aData }] = await Promise.all([
+        const [tRes, cRes, sRes, aRes] = await Promise.all([
           supabaseClient.from('teachers').select('*'),
           supabaseClient.from('classes').select('*'),
           classCode ? supabaseClient.from('students').select('*').eq('class_code', classCode) : supabaseClient.from('students').select('*'),
           classCode ? supabaseClient.from('assignments').select('*').eq('class_code', classCode) : supabaseClient.from('assignments').select('*')
         ]);
-        if (tData && tData.length) db.teachers = tData;
-        if (cData && cData.length) db.classes = cData;
-        if (sData) {
-          db.students = db.students.filter(s => s.class_code !== classCode).concat(sData);
+
+        if (!tRes.error && tRes.data && tRes.data.length > 0) {
+          db.teachers = tRes.data;
         }
-        if (aData) {
-          db.assignments = db.assignments.filter(a => a.class_code !== classCode).concat(aData);
+        const adminEmail = CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase();
+        if (!db.teachers.some(t => t.email === adminEmail)) {
+          db.teachers.unshift({ email: adminEmail, name: "Liam McDermott", is_admin: true });
         }
+
+        if (!cRes.error && Array.isArray(cRes.data)) {
+          db.classes = cRes.data;
+        }
+
+        if (!sRes.error && Array.isArray(sRes.data)) {
+          if (classCode) {
+            db.students = db.students.filter(s => s.class_code !== classCode).concat(sRes.data);
+          } else {
+            db.students = sRes.data;
+          }
+        }
+
+        if (!aRes.error && Array.isArray(aRes.data)) {
+          if (classCode) {
+            db.assignments = db.assignments.filter(a => a.class_code !== classCode).concat(aRes.data);
+          } else {
+            db.assignments = aRes.data;
+          }
+        }
+
         saveLocalDB();
+        const badge = document.getElementById('cloudSyncBadge');
+        if (badge) {
+          badge.textContent = "● Cloud Synced";
+          badge.style.background = "#D1E7DD";
+          badge.style.color = "#0F5132";
+        }
       } catch (err) {
         console.warn("Supabase fetch skipped:", err);
       }
@@ -1296,6 +1296,7 @@ Noah T."></textarea>
       const code = document.getElementById('classCodeInput').value.trim().toUpperCase();
       if (!code) return;
       activeClassCode = code;
+      document.getElementById('landingClassTitle').textContent = `Loading Class ${code}...`;
       await syncFromSupabase(code);
       renderLandingRoster(code);
     }
@@ -1436,7 +1437,7 @@ Noah T."></textarea>
       saveLocalDB();
       if (supabaseClient && activeStudent) {
         try {
-          await supabaseClient.from('students').upsert({
+          const { error } = await supabaseClient.from('students').upsert({
             id: activeStudent.id,
             class_code: activeStudent.class_code,
             name: activeStudent.name,
@@ -1446,7 +1447,7 @@ Noah T."></textarea>
             test_results: activeStudent.test_results,
             updated_at: new Date().toISOString()
           });
-          document.getElementById('syncStatusLabel').textContent = "● Saved to Cloud";
+          document.getElementById('syncStatusLabel').textContent = error ? "● Saved Locally" : "● Saved to Cloud";
         } catch (err) {
           document.getElementById('syncStatusLabel').textContent = "● Saved on Chromebook";
         }
@@ -2110,6 +2111,8 @@ Noah T."></textarea>
       const feedback = document.getElementById('teacherAuthFeedback');
       if (!email) { feedback.textContent = "Please enter your teacher email."; return; }
 
+      await syncFromSupabase(null);
+
       if (supabaseClient && password) {
         feedback.textContent = "Authenticating...";
         const { error } = mode === 'signup'
@@ -2118,13 +2121,14 @@ Noah T."></textarea>
         if (error) { feedback.textContent = error.message; return; }
       }
 
-      const authorized = db.teachers.find(t => t.email === email) || (email === CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase() ? { email, name: "Lead Teacher", is_admin: true } : null);
+      const authorized = db.teachers.find(t => t.email === email) || (email === CONFIG.ADMIN_TEACHER_EMAIL.toLowerCase() ? { email, name: "Liam McDermott", is_admin: true } : null);
       if (!authorized) {
         feedback.textContent = "This email has not been authorized yet. Ask your lead teacher to add your email in Manage Teachers.";
         return;
       }
 
       activeTeacher = authorized;
+      await ensureTeacherInSupabase(activeTeacher);
       feedback.textContent = "";
       closeModal('teacherAuthModal');
       openTeacherDashboard();
@@ -2135,6 +2139,8 @@ Noah T."></textarea>
       document.getElementById('studentWorkspace').style.display = 'none';
       document.getElementById('teacherDashboard').style.display = 'block';
       document.getElementById('teacherWelcomeLabel').textContent = `Signed in as ${activeTeacher.name} (${activeTeacher.email})`;
+
+      await syncFromSupabase(null);
 
       const myClasses = activeTeacher.is_admin
         ? db.classes
@@ -2149,6 +2155,7 @@ Noah T."></textarea>
         opt.textContent = "No classes yet — click + New Class";
         sel.appendChild(opt);
         activeClassCode = "";
+        document.getElementById('deleteClassBtn').style.display = 'none';
         document.getElementById('shareableClassUrl').textContent = "Click '+ New Class' to create your student link";
         renderTeacherRosterTable();
         renderTeacherAssignmentsTable();
@@ -2159,8 +2166,11 @@ Noah T."></textarea>
           opt.textContent = `${c.name} (${c.code})`;
           sel.appendChild(opt);
         });
-        activeClassCode = myClasses[0].code;
+        if (!activeClassCode || !myClasses.some(c => c.code === activeClassCode)) {
+          activeClassCode = myClasses[0].code;
+        }
         sel.value = activeClassCode;
+        document.getElementById('deleteClassBtn').style.display = 'inline-block';
         await onTeacherClassChange();
       }
 
@@ -2173,6 +2183,11 @@ Noah T."></textarea>
       if (activeClassCode) {
         document.getElementById('classCodeInput').value = activeClassCode;
         renderLandingRoster(activeClassCode);
+      } else {
+        document.getElementById('classCodeInput').value = '';
+        document.getElementById('landingClassTitle').textContent = 'Enter Your Class Code';
+        document.getElementById('landingClassSub').textContent = "Type your teacher's class code below to view your classroom roster!";
+        document.getElementById('classRosterContainer').innerHTML = '';
       }
     }
 
@@ -2191,6 +2206,7 @@ Noah T."></textarea>
       if (sel.value) activeClassCode = sel.value;
       if (!activeClassCode) return;
 
+      document.getElementById('deleteClassBtn').style.display = 'inline-block';
       const baseUrl = window.location.href.split('?')[0];
       document.getElementById('shareableClassUrl').textContent = `${baseUrl}?class=${activeClassCode}`;
 
@@ -2211,15 +2227,50 @@ Noah T."></textarea>
       const code = document.getElementById('newClassCodeInput').value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
       if (!name || !code) return;
 
-      const newCls = { code, name, teacher_email: activeTeacher.email };
-      db.classes.push(newCls);
+      await ensureTeacherInSupabase(activeTeacher);
+
+      const newCls = { code, name, teacher_email: activeTeacher.email.toLowerCase() };
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('classes').upsert(newCls);
+        if (error) {
+          alert(`Could not save class to Supabase cloud: ${error.message}`);
+          return;
+        }
+      }
+
+      db.classes = db.classes.filter(c => c.code !== code).concat([newCls]);
+      activeClassCode = code;
       saveLocalDB();
-      if (supabaseClient) await supabaseClient.from('classes').upsert(newCls);
 
       document.getElementById('newClassNameInput').value = '';
       document.getElementById('newClassCodeInput').value = '';
       closeModal('createClassModal');
-      openTeacherDashboard();
+      await openTeacherDashboard();
+    }
+
+    async function deleteActiveClass() {
+      if (!activeClassCode) return;
+      const cls = db.classes.find(c => c.code === activeClassCode);
+      const label = cls ? `${cls.name} (${cls.code})` : activeClassCode;
+      if (!confirm(`Delete "${label}" and all of its students and assignments? This cannot be undone.`)) return;
+
+      const codeToDelete = activeClassCode;
+      if (supabaseClient) {
+        await supabaseClient.from('assignments').delete().eq('class_code', codeToDelete);
+        await supabaseClient.from('students').delete().eq('class_code', codeToDelete);
+        const { error } = await supabaseClient.from('classes').delete().eq('code', codeToDelete);
+        if (error) {
+          alert(`Cloud delete error: ${error.message}`);
+          return;
+        }
+      }
+
+      db.classes = db.classes.filter(c => c.code !== codeToDelete);
+      db.students = db.students.filter(s => s.class_code !== codeToDelete);
+      db.assignments = db.assignments.filter(a => a.class_code !== codeToDelete);
+      activeClassCode = "";
+      saveLocalDB();
+      await openTeacherDashboard();
     }
 
     function renderTeacherRosterTable() {
@@ -2229,13 +2280,13 @@ Noah T."></textarea>
       targetSel.innerHTML = activeClassCode ? `<option value="">Entire Class (${activeClassCode})</option>` : `<option value="">Create a class first</option>`;
 
       if (!activeClassCode) {
-        tbody.innerHTML = `<tr><td colspan="5" style="color:var(--color-text-muted);">Click <strong>+ New Class</strong> above to create your classroom first!</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="color:var(--color-text-muted);">Click <strong>+ New Class</strong> above to create your classroom first!</td></tr>`;
         return;
       }
 
       const roster = db.students.filter(s => s.class_code === activeClassCode);
       if (roster.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" style="color:var(--color-text-muted);">No students yet. Add your first student on the right!</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="color:var(--color-text-muted);">No students yet. Add your first student on the right!</td></tr>`;
         return;
       }
 
@@ -2259,10 +2310,29 @@ Noah T."></textarea>
           <td>${mastered} / 59</td>
           <td>${words}</td>
           <td>${avg}</td>
+          <td><button class="btn-danger-outline" onclick="event.stopPropagation(); deleteStudent('${s.id}')">Remove</button></td>
         `;
         tr.onclick = () => openProgressInspector(s.id);
         tbody.appendChild(tr);
       });
+    }
+
+    async function deleteStudent(studentId) {
+      const stu = db.students.find(s => s.id === studentId);
+      if (!stu) return;
+      if (!confirm(`Remove ${stu.name} from this class?`)) return;
+
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('students').delete().eq('id', studentId);
+        if (error) {
+          alert(`Could not remove student from cloud: ${error.message}`);
+          return;
+        }
+      }
+
+      db.students = db.students.filter(s => s.id !== studentId);
+      saveLocalDB();
+      renderTeacherRosterTable();
     }
 
     async function addSingleStudent() {
@@ -2283,10 +2353,16 @@ Noah T."></textarea>
         test_results: []
       };
 
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('students').upsert(student);
+        if (error) {
+          alert(`Could not save student to cloud: ${error.message}`);
+          return;
+        }
+      }
+
       db.students.push(student);
       saveLocalDB();
-      if (supabaseClient) await supabaseClient.from('students').upsert(student);
-
       document.getElementById('newStudentName').value = '';
       renderTeacherRosterTable();
     }
@@ -2307,10 +2383,16 @@ Noah T."></textarea>
         test_results: []
       }));
 
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('students').upsert(newStudents);
+        if (error) {
+          alert(`Could not bulk-save students to cloud: ${error.message}`);
+          return;
+        }
+      }
+
       db.students.push(...newStudents);
       saveLocalDB();
-      if (supabaseClient) await supabaseClient.from('students').upsert(newStudents);
-
       document.getElementById('bulkStudentNames').value = '';
       renderTeacherRosterTable();
     }
@@ -2334,10 +2416,16 @@ Noah T."></textarea>
         due_date
       };
 
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('assignments').upsert(asg);
+        if (error) {
+          alert(`Could not save assignment to cloud: ${error.message}`);
+          return;
+        }
+      }
+
       db.assignments.push(asg);
       saveLocalDB();
-      if (supabaseClient) await supabaseClient.from('assignments').upsert(asg);
-
       document.getElementById('assignTitle').value = '';
       renderTeacherAssignmentsTable();
     }
@@ -2357,16 +2445,16 @@ Noah T."></textarea>
           <td><strong>${a.title}</strong></td>
           <td>${stu ? `${stu.avatar} ${stu.name}` : 'Entire Class'}</td>
           <td>${a.due_date || '—'}</td>
-          <td><button class="btn-outline" onclick="deleteAssignment('${a.id}')">Remove</button></td>
+          <td><button class="btn-danger-outline" onclick="deleteAssignment('${a.id}')">Remove</button></td>
         `;
         tbody.appendChild(tr);
       });
     }
 
     async function deleteAssignment(id) {
+      if (supabaseClient) await supabaseClient.from('assignments').delete().eq('id', id);
       db.assignments = db.assignments.filter(a => a.id !== id);
       saveLocalDB();
-      if (supabaseClient) await supabaseClient.from('assignments').delete().eq('id', id);
       renderTeacherAssignmentsTable();
     }
 
@@ -2386,10 +2474,16 @@ Noah T."></textarea>
       if (!email) return;
 
       const teacher = { email, name, is_admin: false };
+      if (supabaseClient) {
+        const { error } = await supabaseClient.from('teachers').upsert(teacher);
+        if (error) {
+          alert(`Could not authorize teacher in cloud: ${error.message}`);
+          return;
+        }
+      }
       if (!db.teachers.some(t => t.email === email)) {
         db.teachers.push(teacher);
         saveLocalDB();
-        if (supabaseClient) await supabaseClient.from('teachers').upsert(teacher);
       }
       document.getElementById('newTeacherEmailInput').value = '';
       document.getElementById('newTeacherNameInput').value = '';
